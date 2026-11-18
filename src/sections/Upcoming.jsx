@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { CalendarDays, Check, Clock, Copy, Users } from 'lucide-react';
 import { useData } from '../lib/store.jsx';
-import { BULAN_PENDEK, byOrder, copyText, cx, daysUntil, hariFromISO, parseISO, relativeLabel, todayISO } from '../lib/utils.js';
+import { BULAN_PENDEK, byOrder, copyText, cx, daysUntil, hariFromISO, hariOf, parseISO, relativeLabel, todayISO } from '../lib/utils.js';
 import { buildWaMessage } from '../lib/wa.js';
 import { AddButton, ConfirmModal, Empty, FormModal, RowActions, SectionHeader, moved, useEditor } from '../components/ui.jsx';
 
@@ -57,25 +57,27 @@ export default function Upcoming() {
             const n = daysUntil(r.tarikh);
             const past = n !== null && n < 0;
             return (
-              <li key={r.id} className={cx('card relative flex flex-col gap-4 p-5', past && 'opacity-60')}>
-                <div className="flex gap-4">
-                  <div className="flex w-16 shrink-0 flex-col items-center justify-center rounded-btn border border-accent/40 bg-accent/10 py-2.5 text-center">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-muted">{r.hari?.slice(0, 3) || '—'}</span>
+              <li key={r.id} className={cx('card relative flex flex-col gap-4 p-4 sm:p-5', past && 'opacity-70')}>
+                <div className="flex gap-3.5 sm:gap-4">
+                  <div className="flex w-[60px] shrink-0 flex-col items-center justify-center self-start rounded-btn border border-accent/40 bg-accent/10 py-2 text-center">
+                    <span className="text-xs font-bold uppercase tracking-wider text-muted">{hariOf(r).slice(0, 3) || '—'}</span>
                     <span className="text-2xl font-extrabold leading-none text-primary">{d ? d.getDate() : '?'}</span>
-                    <span className="text-[11px] font-semibold text-muted">{d ? `${BULAN_PENDEK[d.getMonth()]} ${String(d.getFullYear()).slice(2)}` : ''}</span>
+                    <span className="text-xs font-semibold text-muted">{d ? `${BULAN_PENDEK[d.getMonth()]} ${String(d.getFullYear()).slice(2)}` : ''}</span>
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="mb-1.5 flex flex-wrap items-center gap-2">
-                      <span className={cx('chip', past ? 'bg-ink/5 text-muted' : n <= 3 ? 'bg-accent text-on-accent' : 'bg-brand/10 text-primary dark:bg-accent/15')}>
-                        {past ? 'Telah berlalu' : relativeLabel(r.tarikh)}
-                      </span>
-                      {r.masa && <span className="inline-flex items-center gap-1 text-xs text-muted"><Clock size={12} />{r.masa}</span>}
+                      {n !== null && (
+                        <span className={cx('chip', past ? 'bg-ink/5 text-muted' : n <= 3 ? 'bg-accent text-on-accent' : 'bg-brand/10 text-primary dark:bg-accent/15')}>
+                          {past ? 'Telah berlalu' : relativeLabel(r.tarikh)}
+                        </span>
+                      )}
+                      {r.masa && <span className="inline-flex items-center gap-1 text-[13px] text-muted"><Clock size={13} />{r.masa}</span>}
                     </div>
-                    <h3 className="font-bold leading-snug text-ink">{r.tajuk}</h3>
-                    <p className="mt-1.5 flex items-start gap-1.5 text-sm text-muted"><Users size={15} className="mt-0.5 shrink-0" />{r.panel}</p>
+                    <h3 className="text-[17px] font-bold leading-snug text-ink wrap-anywhere sm:text-base">{r.tajuk}</h3>
+                    <p className="mt-1.5 flex items-start gap-1.5 text-[15px] leading-snug text-muted wrap-anywhere sm:text-sm"><Users size={15} className="mt-0.5 shrink-0" />{r.panel}</p>
                   </div>
                 </div>
-                <div className="mt-auto flex flex-col gap-2 border-t border-line pt-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="mt-auto flex flex-col gap-1 border-t border-line pt-3.5 sm:flex-row sm:items-center sm:justify-between sm:gap-2">
                   <CopyWa item={r} />
                   {isAdmin && (
                     <RowActions

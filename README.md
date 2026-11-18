@@ -33,6 +33,15 @@ npm run dev        # http://localhost:5173 — Mod Demo, PIN admin: 1234
 npm run build      # output ke dist/
 ```
 
+## Ujian
+
+```bash
+npm run test:api   # 16 ujian kontrak API: Code.gs sebenar dijalankan dalam emulator Apps Script tempatan
+npm run test:e2e   # 28 semakan Playwright: app (mod live) ↔ emulator, semua 7 seksyen, awam + admin, mudah alih, 0 ralat konsol
+```
+
+`tests/gas-emulator.cjs` menjalankan `Code.gs` yang sebenar (bukan salinan) dengan tiruan `SpreadsheetApp`, `CacheService` dan servis lain. Ia juga menolak preflight `OPTIONS` sama seperti Apps Script, jadi sebarang regresi CORS akan dikesan. Ujian E2E memerlukan Playwright + Chromium.
+
 ## Sambung ke Google Sheets
 
 Lihat **[SETUP.md](SETUP.md)** untuk panduan langkah demi langkah: cipta 7 tab, deploy `Code.gs`, dan tampal URL ke `src/config.js`.

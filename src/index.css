@@ -32,7 +32,9 @@
   color-scheme: dark;
 }
 
-html { -webkit-tap-highlight-color: transparent; scroll-behavior: smooth; }
+html { -webkit-tap-highlight-color: transparent; scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
+/* No double-tap zoom delay on controls */
+a, button, [role='tab'], label, summary { touch-action: manipulation; }
 body {
   @apply bg-bg text-ink font-sans antialiased;
   min-height: 100dvh;
@@ -41,7 +43,7 @@ body {
 @layer components {
   .card { @apply bg-surface border border-line rounded-card shadow-soft; }
   .btn {
-    @apply inline-flex items-center justify-center gap-2 rounded-btn px-4 py-2.5 text-sm font-semibold
+    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-btn px-4 py-2.5 text-[15px] font-semibold sm:text-sm
       transition active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none
       focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg;
   }
@@ -49,24 +51,34 @@ body {
   .btn-brand { @apply btn bg-brand text-on-brand hover:brightness-110 dark:border dark:border-accent/40; }
   .btn-ghost { @apply btn text-ink hover:bg-ink/5 border border-line; }
   .btn-icon {
-    @apply inline-flex h-9 w-9 items-center justify-center rounded-btn text-muted transition
+    @apply inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-btn text-muted transition
       hover:bg-ink/5 hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent;
   }
   .input {
-    @apply w-full rounded-btn border border-line bg-bg px-3.5 py-2.5 text-sm text-ink placeholder:text-muted/70
+    /* 16px on mobile prevents iOS Safari auto-zoom on focus */
+    @apply min-h-11 w-full rounded-btn border border-line bg-bg px-3.5 py-2.5 text-base text-ink placeholder:text-muted/70 sm:text-sm
       focus:outline-none focus:ring-2 focus:ring-accent/60 focus:border-accent;
   }
   .label { @apply mb-1.5 block text-xs font-semibold uppercase tracking-wider text-muted; }
   .chip { @apply inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold; }
+  /* Small visual pill with a full 44x44 invisible hit area (for compact chips/links). */
+  .hit { @apply relative inline-flex min-h-11 items-center; }
+  /* Long unbroken user text (URLs, IDs) must wrap instead of overflowing the card. */
+  .wrap-anywhere { overflow-wrap: anywhere; word-break: break-word; }
+  /* Segmented filter control */
+  .segmented { @apply flex rounded-btn border border-line bg-surface p-1 text-sm font-semibold; }
+  .segment { @apply flex min-h-11 flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-[9px] px-2.5 transition sm:flex-none; }
   .section-title { @apply text-xl font-bold tracking-tight text-ink sm:text-2xl; }
-  .arabic { @apply font-arabic; line-height: 1.9; }
+  .arabic { @apply font-arabic; line-height: 2; }
 }
 
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .no-scrollbar { scrollbar-width: none; }
 
 @keyframes fade-up { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
-.animate-fade-up { animation: fade-up .28s ease-out both; }
+/* 'backwards' (not 'both'): no transform lingers after the animation, so this wrapper never
+   becomes a containing block for position:fixed descendants (Safari). */
+.animate-fade-up { animation: fade-up .28s ease-out backwards; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
 }

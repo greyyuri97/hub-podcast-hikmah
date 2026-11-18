@@ -31,7 +31,7 @@ function AdminPinModal({ open, onClose }) {
       <form onSubmit={submit} className="space-y-4">
         <p className="text-sm text-muted">Masukkan PIN Admin untuk mengurus semua kandungan hub.</p>
         <input
-          className="input text-center text-xl tracking-[0.5em]"
+          className="input min-h-12 text-center text-xl tracking-[0.5em]"
           type="password"
           inputMode="numeric"
           autoComplete="off"
@@ -43,7 +43,7 @@ function AdminPinModal({ open, onClose }) {
         />
         {err && <p className="text-sm font-medium text-danger">{err}</p>}
         {mode === 'mock' && <p className="text-xs text-muted">Mod demo: PIN lalai ialah <b>{CONFIG.MOCK_ADMIN_PIN}</b> (ubah di <code>src/config.js</code>).</p>}
-        <button className="btn-gold w-full" disabled={busy || !pin}>{busy ? 'Menyemak…' : 'Buka Kunci'}</button>
+        <button className="btn-gold min-h-12 w-full text-base sm:text-sm" disabled={busy || !pin}>{busy ? 'Menyemak…' : 'Buka Kunci'}</button>
       </form>
     </Modal>
   );
@@ -64,23 +64,23 @@ export function Footer() {
   };
 
   return (
-    <footer className="mt-16 border-t border-line">
-      <div className="mx-auto flex max-w-6xl flex-col items-center gap-3 px-4 py-8 text-center sm:px-6">
+    <footer className="mt-12 border-t border-line sm:mt-16">
+      <div className="mx-auto flex max-w-6xl flex-col items-center gap-2 px-4 pb-4 pt-7 text-center sm:px-6 sm:py-8">
         <Star8 className="h-5 w-5 text-accent" />
-        <p className="max-w-md text-xs text-muted">
+        <p className="max-w-md text-[13px] leading-relaxed text-muted">
           Hub rujukan bersama untuk penganjur, moderator dan panel. Kongsi pautan ini — tak perlu ulang penerangan dalam group WhatsApp lagi.
         </p>
-        <div className="flex items-center gap-1.5">
-          <button onClick={onTap} className="select-none text-xs text-muted/80" aria-label="Hak cipta">
+        <div className="flex items-center">
+          <button onClick={onTap} className="min-h-11 select-none px-2 text-[13px] text-muted/80" aria-label="Hak cipta">
             © {new Date().getFullYear()} {CONFIG.ORG_NAME}
           </button>
           <button
             onClick={() => (isAdmin ? logout() : setOpen(true))}
-            className="rounded p-1 text-muted/40 transition hover:text-muted"
+            className="grid h-11 w-11 place-items-center rounded-btn text-muted/40 transition hover:text-muted"
             aria-label={isAdmin ? 'Keluar Mod Admin' : 'Log masuk Admin'}
             title={isAdmin ? 'Keluar Mod Admin' : 'Admin'}
           >
-            {isAdmin ? <LockOpen size={12} /> : <Lock size={12} />}
+            {isAdmin ? <LockOpen size={14} /> : <Lock size={14} />}
           </button>
         </div>
       </div>

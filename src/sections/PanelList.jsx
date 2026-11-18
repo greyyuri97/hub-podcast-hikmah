@@ -46,22 +46,22 @@ export default function PanelList() {
         <label className="relative flex-1">
           <span className="sr-only">Cari panel atau tajuk</span>
           <Search size={17} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-muted" />
-          <input className="input bg-surface pl-10 pr-10" placeholder="Cari nama panel atau tajuk…" value={q} onChange={(e) => setQ(e.target.value)} />
+          <input type="search" enterKeyHint="search" className="input bg-surface pl-10 pr-12" placeholder="Cari nama panel atau tajuk…" value={q} onChange={(e) => setQ(e.target.value)} />
           {q && (
-            <button className="btn-icon absolute right-1 top-1/2 h-8 w-8 -translate-y-1/2" onClick={() => setQ('')} aria-label="Kosongkan carian"><X size={15} /></button>
+            <button className="btn-icon absolute right-0 top-1/2 -translate-y-1/2" onClick={() => setQ('')} aria-label="Kosongkan carian"><X size={17} /></button>
           )}
         </label>
-        <div className="flex rounded-btn border border-line bg-surface p-1 text-sm font-semibold" role="tablist" aria-label="Tapis masa">
+        <div className="segmented" role="tablist" aria-label="Tapis masa">
           {[['semua', 'Semua'], ['akan', 'Akan datang'], ['lepas', 'Lepas']].map(([v, l]) => (
             <button key={v} role="tab" aria-selected={when === v} onClick={() => setWhen(v)}
-              className={cx('flex-1 rounded-[9px] px-3 py-1.5 transition sm:flex-none', when === v ? 'bg-brand text-on-brand dark:text-accent' : 'text-muted hover:text-ink')}>
+              className={cx('segment sm:px-3', when === v ? 'bg-brand text-on-brand dark:text-accent' : 'text-muted hover:text-ink')}>
               {l}
             </button>
           ))}
         </div>
       </div>
 
-      <p className="mb-3 text-xs font-medium text-muted">{rows.length} rekod</p>
+      <p className="mb-3 text-[13px] font-medium text-muted">{rows.length} rekod</p>
 
       {rows.length === 0 ? (
         <Empty icon={Users} title={q ? 'Tiada padanan' : 'Tiada rekod panel'} hint={q ? `Tiada keputusan untuk “${q}”.` : undefined} />
@@ -70,11 +70,12 @@ export default function PanelList() {
           {rows.map((r) => {
             const n = daysUntil(r.tarikh);
             return (
-              <li key={r.id} className="flex items-center gap-3.5 px-4 py-3.5 sm:px-5">
+              <li key={r.id} className="flex min-h-[64px] items-center gap-3 px-4 py-3 sm:gap-3.5 sm:px-5">
                 <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-brand/10 text-primary dark:bg-accent/15"><UserRound size={18} /></span>
                 <div className="min-w-0 flex-1">
-                  <p className="truncate font-semibold text-ink">{r.nama_panel}</p>
-                  <p className="truncate text-sm text-muted">{r.tajuk}</p>
+                  <p className="line-clamp-2 font-semibold leading-snug text-ink wrap-anywhere">{r.nama_panel}</p>
+                  <p className="mt-0.5 line-clamp-2 text-sm leading-snug text-muted wrap-anywhere">{r.tajuk}</p>
+                  {r.tarikh && <p className="mt-1 text-[13px] font-medium text-muted sm:hidden">{formatTarikh(r.tarikh, { short: true })}</p>}
                 </div>
                 {r.tarikh && (
                   <span className={cx('chip hidden shrink-0 sm:inline-flex', n !== null && n >= 0 ? 'bg-accent/20 text-ink' : 'bg-ink/5 text-muted')}>

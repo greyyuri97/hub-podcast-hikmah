@@ -64,11 +64,29 @@ export function DataProvider({ children }) {
     return () => document.removeEventListener('visibilitychange', onFocus);
   }, [refresh]);
 
+  const refreshRef = useRef(refresh);
+  refreshRef.current = refresh;
+
+  const dropPin = () => {
+    try { sessionStorage.removeItem(PIN_KEY); } catch { /* noop */ }
+    setPin('');
+  };
+
+  /** Rows created optimistically carry a temp id until the server answers. */
+  const notReady = (...ids) => {
+    if (ids.flat().some((id) => String(id).startsWith('tmp_'))) {
+      toast('Sila tunggu, rekod sedang disimpan…', 'err');
+      return true;
+    }
+    return false;
+  };
+
   const persistLocal = (next) => store(CACHE_KEY, { data: next, at: lastSync });
 
   /** Optimistic mutation: apply locally, call backend, reconcile. */
   const mutate = useCallback(async (optimistic, payload, okMsg) => {
     let snapshot;
+    let failed = false;
     setDb((cur) => {
       snapshot = cur;
       const next = optimistic(cur);
@@ -85,10 +103,14 @@ export function DataProvider({ children }) {
       setDb(snapshot);
       persistLocal(snapshot);
       toast(e.message || 'Ralat tidak dijangka', 'err');
+      failed = true;
+      if (e.message === 'PIN salah') dropPin(); // PIN changed on server -> leave admin mode
       return null; // callers treat null as failure
     } finally {
       pending.current -= 1;
       setSyncing(false);
+      // Other optimistic writes may have succeeded server-side after our snapshot: re-sync.
+      if (failed && pending.current === 0) setTimeout(() => refreshRef.current(), 0);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pin, toast, lastSync]);
@@ -122,6 +144,7 @@ export function DataProvider({ children }) {
       return row;
     },
     async update(sheet, id, patch, msg = 'Perubahan disimpan') {
+      if (notReady(id)) return null;
       const row = await mutate(
         (cur) => ({ ...cur, [sheet]: cur[sheet].map((r) => (r.id === id ? { ...r, ...patch } : r)) }),
         { action: 'update', sheet, id, patch, ownerKey: mine[id] },
@@ -131,6 +154,7 @@ export function DataProvider({ children }) {
       return row;
     },
     remove(sheet, id) {
+      if (notReady(id)) return Promise.resolve(null);
       return mutate(
         (cur) => ({ ...cur, [sheet]: cur[sheet].filter((r) => r.id !== id) }),
         { action: 'delete', sheet, id },
@@ -138,6 +162,7 @@ export function DataProvider({ children }) {
       );
     },
     reorder(sheet, ids) {
+      if (!ids || notReady(ids)) return Promise.resolve(null);
       return mutate(
         (cur) => ({
           ...cur,
@@ -150,6 +175,7 @@ export function DataProvider({ children }) {
       );
     },
     increment(sheet, id, delta) {
+      if (notReady(id)) return Promise.resolve(null);
       return mutate(
         (cur) => ({
           ...cur,
@@ -171,8 +197,7 @@ export function DataProvider({ children }) {
   }, [toast]);
 
   const logout = useCallback(() => {
-    try { sessionStorage.removeItem(PIN_KEY); } catch { /* noop */ }
-    setPin('');
+    dropPin();
     toast('Keluar dari Mod Admin');
   }, [toast]);
 
@@ -187,7 +212,8 @@ export function DataProvider({ children }) {
     <ToastCtx.Provider value={toast}>
       <DataCtx.Provider value={value}>
         {children}
-        <div className="pointer-events-none fixed inset-x-0 bottom-4 z-[60] flex flex-col items-center gap-2 px-4 pb-[env(safe-area-inset-bottom)]">
+        {/* Top of screen: bottom sheets keep their action buttons at the bottom edge. */}
+        <div className="pointer-events-none fixed inset-x-0 top-0 z-[60] flex flex-col items-center gap-2 px-4 pt-[max(0.75rem,env(safe-area-inset-top))]">
           {toasts.map((t) => (
             <div
               key={t.id}
