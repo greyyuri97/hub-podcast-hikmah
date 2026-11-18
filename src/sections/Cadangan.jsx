@@ -75,6 +75,7 @@ function AdminReply({ item }) {
         rows={2}
         className="input flex-1 bg-surface"
         placeholder="Tulis maklum balas admin…"
+        maxLength={2000}
         value={val}
         onChange={(e) => setVal(e.target.value)}
         aria-label="Maklum balas admin"

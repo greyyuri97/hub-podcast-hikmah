@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { CalendarDays, Check, Clock, Copy, Users } from 'lucide-react';
 import { useData } from '../lib/store.jsx';
-import { BULAN_PENDEK, byOrder, copyText, cx, daysUntil, hariFromISO, parseISO, relativeLabel, todayISO } from '../lib/utils.js';
+import { BULAN_PENDEK, byOrder, copyText, cx, daysUntil, hariFromISO, hariOf, parseISO, relativeLabel, todayISO } from '../lib/utils.js';
 import { buildWaMessage } from '../lib/wa.js';
 import { AddButton, ConfirmModal, Empty, FormModal, RowActions, SectionHeader, moved, useEditor } from '../components/ui.jsx';
 
@@ -60,15 +60,17 @@ export default function Upcoming() {
               <li key={r.id} className={cx('card relative flex flex-col gap-4 p-5', past && 'opacity-60')}>
                 <div className="flex gap-4">
                   <div className="flex w-16 shrink-0 flex-col items-center justify-center rounded-btn border border-accent/40 bg-accent/10 py-2.5 text-center">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-muted">{r.hari?.slice(0, 3) || '—'}</span>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-muted">{hariOf(r).slice(0, 3) || '—'}</span>
                     <span className="text-2xl font-extrabold leading-none text-primary">{d ? d.getDate() : '?'}</span>
                     <span className="text-[11px] font-semibold text-muted">{d ? `${BULAN_PENDEK[d.getMonth()]} ${String(d.getFullYear()).slice(2)}` : ''}</span>
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="mb-1.5 flex flex-wrap items-center gap-2">
-                      <span className={cx('chip', past ? 'bg-ink/5 text-muted' : n <= 3 ? 'bg-accent text-on-accent' : 'bg-brand/10 text-primary dark:bg-accent/15')}>
-                        {past ? 'Telah berlalu' : relativeLabel(r.tarikh)}
-                      </span>
+                      {n !== null && (
+                        <span className={cx('chip', past ? 'bg-ink/5 text-muted' : n <= 3 ? 'bg-accent text-on-accent' : 'bg-brand/10 text-primary dark:bg-accent/15')}>
+                          {past ? 'Telah berlalu' : relativeLabel(r.tarikh)}
+                        </span>
+                      )}
                       {r.masa && <span className="inline-flex items-center gap-1 text-xs text-muted"><Clock size={12} />{r.masa}</span>}
                     </div>
                     <h3 className="font-bold leading-snug text-ink">{r.tajuk}</h3>

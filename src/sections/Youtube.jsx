@@ -7,7 +7,9 @@ import { AddButton, ConfirmModal, Empty, FormModal, RowActions, SectionHeader, m
 
 function Thumb({ item, className = '' }) {
   const id = getYouTubeId(item.youtube_url);
-  const src = (isUrl(item.custom_thumbnail) && item.custom_thumbnail) || ytThumb(id);
+  const custom = isUrl(item.custom_thumbnail) ? item.custom_thumbnail : '';
+  // Demo seed IDs (CONTOH…) don't exist on YouTube: skip the request instead of logging 404s.
+  const src = custom || (id && !/^CONTOH/.test(id) ? ytThumb(id) : '');
   const [failed, setFailed] = useState(false);
   const [lastSrc, setLastSrc] = useState(src);
   if (src !== lastSrc) { setLastSrc(src); setFailed(false); }
@@ -22,7 +24,7 @@ function Thumb({ item, className = '' }) {
           className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.03]"
           onError={() => setFailed(true)}
           // YouTube serves a 120×90 grey placeholder for unknown IDs — treat as missing.
-          onLoad={(e) => e.currentTarget.naturalWidth <= 120 && setFailed(true)}
+          onLoad={(e) => !custom && e.currentTarget.naturalWidth <= 120 && setFailed(true)}
         />
       ) : (
         <div className="absolute inset-0 grid place-items-center text-accent">

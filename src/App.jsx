@@ -22,7 +22,7 @@ const fromHash = () => {
 export default function App() {
   const [tab, setTabState] = useState(fromHash);
   const contentRef = useRef(null);
-  const { isAdmin, mode } = useData();
+  const { isAdmin, mode, hasData, error, syncing, refresh } = useData();
 
   useEffect(() => {
     const onHash = () => setTabState(fromHash());
@@ -56,9 +56,24 @@ export default function App() {
       <main className="mx-auto max-w-6xl px-4 pt-5 sm:px-6 sm:pt-8">
         <Hero goTo={(id) => setTab(id, { scroll: true })} />
         <div ref={contentRef} className="scroll-mt-32 pt-10 sm:pt-12 lg:scroll-mt-24">
-          <div key={tab} className="animate-fade-up">
-            <Section />
-          </div>
+          {hasData ? (
+            <div key={tab} className="animate-fade-up">
+              <Section />
+            </div>
+          ) : error && !syncing ? (
+            <div className="card flex flex-col items-center gap-3 px-6 py-12 text-center">
+              <p className="font-semibold text-ink">Tidak dapat memuatkan data</p>
+              <p className="max-w-sm text-sm text-muted">{error}</p>
+              <button className="btn-gold" onClick={() => refresh({ silent: false })}>Cuba lagi</button>
+            </div>
+          ) : (
+            <div className="space-y-4" aria-busy="true" aria-label="Memuatkan">
+              <div className="h-7 w-48 animate-pulse rounded bg-line" />
+              <div className="grid gap-4 md:grid-cols-2">
+                {[0, 1, 2, 3].map((i) => <div key={i} className="h-40 animate-pulse rounded-card bg-line/70" />)}
+              </div>
+            </div>
+          )}
         </div>
         {mode === 'mock' && (
           <p className="mt-10 rounded-btn border border-dashed border-line px-4 py-3 text-center text-xs text-muted">
