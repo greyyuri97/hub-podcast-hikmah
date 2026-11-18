@@ -26,12 +26,11 @@ export function DriveCard({ item, isAdmin, onEdit, onDelete, onUp, onDown, featu
           <FileText size={21} strokeWidth={1.8} />
         </span>
         <div className="min-w-0 flex-1">
-          <p className={cx('mb-0.5 text-[10px] font-bold uppercase tracking-[0.16em]', featured ? 'text-accent' : 'text-muted')}>PDF · Google Drive</p>
-          <h3 className="font-bold leading-snug">{item.tajuk}</h3>
+          <p className={cx('mb-0.5 text-xs font-bold uppercase tracking-[0.14em]', featured ? 'text-accent' : 'text-muted')}>PDF · Google Drive</p>
+          <h3 className="text-[17px] font-bold leading-snug wrap-anywhere sm:text-base">{item.tajuk}</h3>
         </div>
-        {isAdmin && <RowActions tone={featured ? 'onBrand' : 'default'} onUp={onUp} onDown={onDown} onEdit={onEdit} onDelete={onDelete} />}
       </div>
-      {item.keterangan && <p className={cx('text-sm leading-relaxed', featured ? 'text-on-brand/80' : 'text-muted')}>{item.keterangan}</p>}
+      {item.keterangan && <p className={cx('text-[15px] leading-relaxed wrap-anywhere sm:text-sm', featured ? 'text-on-brand/80' : 'text-muted')}>{item.keterangan}</p>}
       <div className="mt-auto flex gap-2">
         {hasUrl ? (
           <>
@@ -39,7 +38,7 @@ export function DriveCard({ item, isAdmin, onEdit, onDelete, onUp, onDown, featu
               <Download size={16} /> Muat Turun PDF
             </a>
             <a
-              className={cx('btn border', featured ? 'border-white/20 text-on-brand hover:bg-white/10' : 'border-line text-ink hover:bg-ink/5')}
+              className={cx('btn min-w-11 border px-3 sm:px-4', featured ? 'border-white/20 text-on-brand hover:bg-white/10' : 'border-line text-ink hover:bg-ink/5')}
               href={item.gdrive_url}
               target="_blank"
               rel="noopener noreferrer"
@@ -52,6 +51,13 @@ export function DriveCard({ item, isAdmin, onEdit, onDelete, onUp, onDown, featu
           <span className="text-sm italic opacity-70">Pautan belum ditetapkan</span>
         )}
       </div>
+      {isAdmin && (
+        <RowActions
+          tone={featured ? 'onBrand' : 'default'}
+          className={cx('-mx-2 -mb-2 justify-end border-t pt-1', featured ? 'border-white/15' : 'border-line')}
+          onUp={onUp} onDown={onDown} onEdit={onEdit} onDelete={onDelete}
+        />
+      )}
     </article>
   );
 }

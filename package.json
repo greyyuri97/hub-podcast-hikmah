@@ -10,7 +10,8 @@
     "icons": "node scripts/generate-icons.mjs",
     "test:api": "node tests/gas-api.test.cjs",
     "test:e2e": "vite build --outDir .e2e-dist --emptyOutDir && node tests/e2e.cjs .e2e-dist",
-    "test": "npm run test:api && npm run test:e2e"
+    "test": "npm run test:api && npm run test:e2e && npm run test:mobile",
+    "test:mobile": "vite build && node tests/mobile-audit.cjs .mobile-audit --strict"
   },
   "dependencies": {
     "lucide-react": "^0.460.0",

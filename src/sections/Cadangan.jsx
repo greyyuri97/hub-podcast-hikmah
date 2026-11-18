@@ -40,10 +40,10 @@ function NewForm() {
   };
 
   return (
-    <form onSubmit={submit} className="card relative mb-8 overflow-hidden p-5 sm:p-6">
+    <form onSubmit={submit} className="card relative mb-7 overflow-hidden p-4 sm:mb-8 sm:p-6">
       <div className="absolute inset-x-0 top-0 h-1 bg-accent" aria-hidden />
-      <h3 className="mb-1 font-bold text-ink">Kongsi cadangan anda</h3>
-      <p className="mb-4 text-sm text-muted">Idea penambahbaikan untuk podcast atau hub ini. Anda boleh mengedit cadangan sendiri dari pelayar ini sehingga ditandakan selesai.</p>
+      <h3 className="mb-1 text-[17px] font-bold text-ink sm:text-base">Kongsi cadangan anda</h3>
+      <p className="mb-4 text-[15px] leading-relaxed text-muted sm:text-sm">Idea penambahbaikan untuk podcast atau hub ini. Anda boleh mengedit cadangan sendiri dari pelayar ini sehingga ditandakan selesai.</p>
       <div className="grid gap-3 sm:grid-cols-[180px_1fr]">
         <div>
           <label className="label" htmlFor="cad-tarikh">Tarikh</label>
@@ -51,14 +51,14 @@ function NewForm() {
         </div>
         <div>
           <label className="label" htmlFor="cad-catatan">Catatan</label>
-          <textarea id="cad-catatan" rows={3} className="input" maxLength={MAX} placeholder="Tulis cadangan anda di sini…" value={catatan} onChange={(e) => setCatatan(e.target.value)} required />
-          <p className="mt-1 text-right text-[11px] text-muted">{catatan.length}/{MAX}</p>
+          <textarea id="cad-catatan" rows={4} className="input resize-y" maxLength={MAX} placeholder="Tulis cadangan anda di sini…" value={catatan} onChange={(e) => setCatatan(e.target.value)} required />
+          <p className="mt-1 text-right text-xs tabular-nums text-muted">{catatan.length}/{MAX}</p>
         </div>
       </div>
       {/* honeypot: hidden from humans */}
       <input type="text" tabIndex={-1} autoComplete="off" value={hp} onChange={(e) => setHp(e.target.value)} className="absolute -left-[9999px] h-0 w-0 opacity-0" aria-hidden="true" name="website" />
-      <div className="mt-2 flex justify-end">
-        <button className="btn-gold" disabled={busy}><Send size={16} /> {busy ? 'Menghantar…' : 'Hantar Cadangan'}</button>
+      <div className="mt-2 flex sm:justify-end">
+        <button className="btn-gold w-full min-h-12 text-base sm:w-auto sm:text-sm" disabled={busy}><Send size={16} /> {busy ? 'Menghantar…' : 'Hantar Cadangan'}</button>
       </div>
     </form>
   );
@@ -80,7 +80,7 @@ function AdminReply({ item }) {
         onChange={(e) => setVal(e.target.value)}
         aria-label="Maklum balas admin"
       />
-      <button className="btn-brand shrink-0" disabled={!dirty} onClick={() => update('CADANGAN', item.id, { balasan_admin: val }, 'Maklum balas disimpan')}>
+      <button className="btn-brand w-full shrink-0 sm:w-auto" disabled={!dirty} onClick={() => update('CADANGAN', item.id, { balasan_admin: val }, 'Maklum balas disimpan')}>
         Simpan
       </button>
     </div>
@@ -98,15 +98,15 @@ function Bubble({ item, onEdit, onDelete }) {
       {/* User part */}
       <div className="bg-surface p-4 sm:p-5">
         <div className="mb-2 flex flex-wrap items-center gap-2">
-          <span className="text-xs font-semibold text-muted">{formatTarikh(item.tarikh)}</span>
+          <span className="text-[13px] font-semibold text-muted">{formatTarikh(item.tarikh)}</span>
           {mine && <span className="chip bg-brand/10 text-primary dark:bg-accent/15">Cadangan anda</span>}
-          <div className="ml-auto flex items-center gap-0.5">
-            {canEdit && <button className="btn-icon h-8 w-8" onClick={onEdit} aria-label="Edit cadangan"><Pencil size={15} /></button>}
-            {mine && done && !isAdmin && <span className="inline-flex items-center gap-1 text-[11px] text-muted" title="Dikunci selepas selesai"><Lock size={12} /> Dikunci</span>}
-            {isAdmin && <button className="btn-icon h-8 w-8 hover:!text-danger" onClick={onDelete} aria-label="Padam cadangan"><Trash2 size={15} /></button>}
+          <div className="-my-2 -mr-2 ml-auto flex items-center">
+            {canEdit && <button className="btn-icon" onClick={onEdit} aria-label="Edit cadangan"><Pencil size={15} /></button>}
+            {mine && done && !isAdmin && <span className="inline-flex min-h-11 items-center gap-1 px-2 text-xs text-muted" title="Dikunci selepas selesai"><Lock size={13} /> Dikunci</span>}
+            {isAdmin && <button className="btn-icon hover:!text-danger" onClick={onDelete} aria-label="Padam cadangan"><Trash2 size={15} /></button>}
           </div>
         </div>
-        <p className={cx('whitespace-pre-line text-[15px] leading-relaxed text-ink', done && 'text-ink/70')}>{item.catatan}</p>
+        <p className={cx('whitespace-pre-line text-base leading-relaxed text-ink wrap-anywhere sm:text-[15px]', done && 'text-ink/70')}>{item.catatan}</p>
       </div>
 
       {/* Admin part */}
@@ -115,26 +115,26 @@ function Bubble({ item, onEdit, onDelete }) {
           {isAdmin ? (
             <button
               onClick={() => update('CADANGAN', item.id, { status: done ? STATUS.BELUM : STATUS.SELESAI }, done ? 'Ditanda belum selesai' : 'Ditanda selesai')}
-              className={cx('chip border transition', done ? 'border-transparent bg-accent text-on-accent' : 'border-line bg-surface text-muted hover:border-accent hover:text-ink')}
+              className={cx('inline-flex min-h-11 items-center gap-1.5 rounded-full border px-4 text-sm font-semibold transition', done ? 'border-transparent bg-accent text-on-accent' : 'border-line bg-surface text-ink hover:border-accent')}
               aria-pressed={done}
             >
-              {done ? <CheckCircle2 size={14} /> : <CircleDashed size={14} />}
+              {done ? <CheckCircle2 size={17} /> : <CircleDashed size={17} />}
               {done ? 'Done' : 'Tandakan Done'}
-              {done && <RotateCcw size={12} className="ml-0.5 opacity-60" />}
+              {done && <RotateCcw size={14} className="ml-0.5 opacity-60" />}
             </button>
           ) : (
             <span className={cx('chip', done ? 'bg-accent text-on-accent' : 'bg-ink/5 text-muted')}>
               {done ? <CheckCircle2 size={14} /> : <CircleDashed size={14} />} {done ? 'Selesai' : 'Belum Selesai'}
             </span>
           )}
-          <span className="inline-flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wider text-muted"><ShieldCheck size={12} /> Maklum balas admin</span>
+          <span className="inline-flex items-center gap-1 text-xs font-semibold uppercase tracking-wider text-muted"><ShieldCheck size={13} /> Maklum balas admin</span>
         </div>
         {isAdmin ? (
           <AdminReply item={item} />
         ) : item.balasan_admin ? (
-          <p className="whitespace-pre-line text-sm leading-relaxed text-ink">{item.balasan_admin}</p>
+          <p className="whitespace-pre-line text-[15px] leading-relaxed text-ink wrap-anywhere sm:text-sm">{item.balasan_admin}</p>
         ) : (
-          <p className="text-sm italic text-muted">Menunggu maklum balas.</p>
+          <p className="text-[15px] italic text-muted sm:text-sm">Menunggu maklum balas.</p>
         )}
       </div>
     </li>
@@ -167,11 +167,11 @@ export default function Cadangan() {
 
       <NewForm />
 
-      <div className="mb-5 flex rounded-btn border border-line bg-surface p-1 text-sm font-semibold sm:inline-flex" role="tablist" aria-label="Tapis status">
+      <div className="segmented mb-5 sm:inline-flex" role="tablist" aria-label="Tapis status">
         {[['semua', 'Semua'], ['belum', 'Belum Selesai'], ['selesai', 'Selesai']].map(([v, l]) => (
           <button key={v} role="tab" aria-selected={filter === v} onClick={() => setFilter(v)}
-            className={cx('flex flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-[9px] px-2.5 py-1.5 transition sm:flex-none', filter === v ? 'bg-brand text-on-brand dark:text-accent' : 'text-muted hover:text-ink')}>
-            {l} <span className="text-[11px] opacity-70">{counts[v]}</span>
+            className={cx('segment', filter === v ? 'bg-brand text-on-brand dark:text-accent' : 'text-muted hover:text-ink')}>
+            {l} <span className="text-xs tabular-nums opacity-70">{counts[v]}</span>
           </button>
         ))}
       </div>

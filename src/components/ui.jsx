@@ -45,12 +45,19 @@ export function Modal({ open, onClose, title, children, footer, size = 'md' }) {
           size === 'sm' ? 'sm:max-w-sm' : 'sm:max-w-lg',
         )}
       >
-        <div className="flex shrink-0 items-center justify-between gap-3 border-b border-line px-5 py-4">
-          <h3 className="text-base font-bold text-ink">{title}</h3>
-          <button className="btn-icon -mr-2" onClick={onClose} aria-label="Tutup"><X size={18} /></button>
+        {/* grab handle: visual cue that this is a bottom sheet (mobile) */}
+        <div aria-hidden className="mx-auto mt-2 h-1 w-10 shrink-0 rounded-full bg-line sm:hidden" />
+        <div className="flex shrink-0 items-center justify-between gap-3 border-b border-line py-1.5 pl-5 pr-2 sm:py-2.5">
+          <h3 className="min-w-0 text-[17px] font-bold text-ink sm:text-base">{title}</h3>
+          <button className="btn-icon" onClick={onClose} aria-label="Tutup"><X size={20} /></button>
         </div>
-        <div data-modal-body className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-5">{children}</div>
-        {footer && <div className="flex shrink-0 justify-end gap-2 border-t border-line px-5 py-3.5 pb-[max(0.875rem,env(safe-area-inset-bottom))]">{footer}</div>}
+        <div data-modal-body className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-5 [-webkit-overflow-scrolling:touch]">{children}</div>
+        {footer && (
+          // Mobile: full-width split buttons within thumb reach; desktop: right-aligned.
+          <div className="flex shrink-0 gap-2.5 border-t border-line px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:justify-end sm:px-5 [&>*]:flex-1 sm:[&>*]:flex-none">
+            {footer}
+          </div>
+        )}
       </div>
     </div>,
     document.body,

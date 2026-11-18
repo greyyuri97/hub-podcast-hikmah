@@ -470,6 +470,38 @@ async function noHorizontalScroll(page, label) {
       });
     }
 
+    await step('Mobile bottom tab bar: tabs, "Lagi" sheet, active slot, starts at top', async () => {
+      const mctx = await browser.newContext({ ...devices['iPhone 13'] });
+      await stubThumbs(mctx);
+      const mp = await mctx.newPage();
+      watch(mp, 'bottomnav');
+      await mp.goto(APP + '#upcoming');
+      await synced(mp);
+      const bar = mp.getByRole('navigation', { name: 'Seksyen utama' });
+      await bar.getByRole('link', { name: 'Panel' }).click();
+      await mp.waitForSelector('#h-panel');
+      assert.equal(new URL(mp.url()).hash, '#panel');
+      // compact strip replaces the full hero off the Upcoming tab
+      assert.equal(await mp.locator('h1').isVisible(), false);
+      await mp.locator('a:has-text("Seterusnya")').waitFor();
+      await mp.evaluate(() => window.scrollTo(0, 600));
+      await bar.getByRole('button', { name: 'Lagi' }).click();
+      const sheet = mp.getByRole('dialog', { name: 'Seksyen lain' });
+      await sheet.getByRole('link', { name: /Promosi Kitab/ }).click();
+      await mp.waitForSelector('#h-kitab');
+      await sheet.waitFor({ state: 'detached' });
+      assert.equal(await mp.evaluate(() => window.scrollY), 0, 'new tab starts at top');
+      await bar.getByRole('button', { name: 'Kitab' }).waitFor(); // 5th slot shows current section
+      // every bar target >= 44px and bar never covers the footer's admin lock
+      const sizes = await bar.locator('a:visible, button:visible').evaluateAll((els) => els.map((e) => e.getBoundingClientRect().height));
+      assert.ok(sizes.every((h) => h >= 44), `bar targets ${sizes}`);
+      await mp.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+      const lock = await mp.locator('button[aria-label="Log masuk Admin"]').boundingBox();
+      const barTop = (await bar.boundingBox()).y;
+      assert.ok(lock.y + lock.height <= barTop, 'footer content clears the tab bar');
+      await mctx.close();
+    });
+
     // ------------------------------ FOCUS REGRESSION ------------------------------
     await step('Modal keeps focus while background sync re-renders the page', async () => {
       const c = await browser.newContext({ viewport: { width: 1280, height: 860 } });

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Header } from './components/Header.jsx';
+import { BottomNav } from './components/BottomNav.jsx';
 import { Hero } from './components/Hero.jsx';
 import { Footer } from './components/Footer.jsx';
 import { TABS } from './components/nav.js';
@@ -33,7 +34,8 @@ export default function App() {
   const setTab = useCallback((id, { scroll = false } = {}) => {
     setTabState(id);
     if (window.location.hash !== `#${id}`) history.replaceState(null, '', `#${id}`);
-    if (scroll) requestAnimationFrame(() => contentRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+    if (scroll === 'top') window.scrollTo({ top: 0, behavior: 'instant' }); // tab switch = fresh screen
+    else if (scroll) requestAnimationFrame(() => contentRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
   }, []);
 
   const Section = SECTIONS[tab];
@@ -41,21 +43,22 @@ export default function App() {
   useEffect(() => { document.title = `${title} · Hub Podcast Hikmah`; }, [title]);
 
   return (
-    <div className="relative min-h-dvh">
+    // bottom padding = tab bar (64px) + home-indicator safe area on phones/tablets
+    <div className="relative min-h-dvh pb-[calc(64px+env(safe-area-inset-bottom))] lg:pb-0">
       {/* page-wide watermark (gold, 4%) */}
       <div className="pointer-events-none fixed inset-0 -z-10 text-accent"><StarPattern id="page-star" opacity={0.04} /></div>
 
       <Header tab={tab} setTab={setTab} />
 
       {isAdmin && (
-        <div className="border-b border-accent/30 bg-accent/15 text-center text-xs font-semibold text-ink">
-          <p className="mx-auto max-w-6xl px-4 py-2">Mod Admin aktif — anda boleh tambah, edit, susun & padam semua kandungan.</p>
+        <div className="border-b border-accent/30 bg-accent/15 text-center text-[13px] font-semibold text-ink">
+          <p className="mx-auto max-w-6xl px-4 py-2">Mod Admin aktif — tambah, edit, susun & padam kandungan.</p>
         </div>
       )}
 
-      <main className="mx-auto max-w-6xl px-4 pt-5 sm:px-6 sm:pt-8">
-        <Hero goTo={(id) => setTab(id, { scroll: true })} />
-        <div ref={contentRef} className="scroll-mt-32 pt-10 sm:pt-12 lg:scroll-mt-24">
+      <main className="mx-auto max-w-6xl px-4 pt-4 sm:px-6 sm:pt-8">
+        <Hero compact={tab !== 'upcoming'} goTo={(id, opts) => setTab(id, opts || { scroll: true })} />
+        <div ref={contentRef} className="scroll-mt-20 pt-7 sm:pt-12 lg:scroll-mt-24">
           {hasData ? (
             <div key={tab} className="animate-fade-up">
               <Section />
@@ -82,6 +85,7 @@ export default function App() {
         )}
       </main>
       <Footer />
+      <BottomNav tab={tab} setTab={setTab} />
     </div>
   );
 }
