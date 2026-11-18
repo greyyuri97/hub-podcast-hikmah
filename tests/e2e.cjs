@@ -407,6 +407,12 @@ async function noHorizontalScroll(page, label) {
         const mctx = await browser.newContext({ ...devices[dev] });
         await stubThumbs(mctx);
         const mp = await mctx.newPage();
+        // Emulate Safari: transformed/animated ancestors become the containing block for position:fixed.
+        await mp.addInitScript(() => document.addEventListener('DOMContentLoaded', () => {
+          const st = document.createElement('style');
+          st.textContent = '.animate-fade-up{will-change:transform}';
+          document.head.appendChild(st);
+        }));
         watch(mp, dev);
         await mp.goto(APP);
         await synced(mp);
@@ -416,15 +422,29 @@ async function noHorizontalScroll(page, label) {
         await mp.waitForSelector('button[title="Keluar Mod Admin"]');
         rt.cache.clear();
         for (const t of tabs) { await go(mp, t); await noHorizontalScroll(mp, `${dev} admin #${t}`); }
-        await go(mp, 'youtube');
-        await mp.click('text=Tambah Episod');
-        const box = await mp.locator('div[role="dialog"] > div.relative').boundingBox();
-        const vw = mp.viewportSize().width;
-        assert.ok(box.x >= 0 && box.x + box.width <= vw + 0.5, 'modal fits viewport');
-        // input font >= 16px => no iOS focus zoom
-        const fs_ = await mp.locator('#f-tajuk').evaluate((el) => parseFloat(getComputedStyle(el).fontSize));
-        assert.ok(fs_ >= 16, `input font ${fs_}px`);
-        await mp.keyboard.press('Escape');
+        // Every "add" form, opened after scrolling down: overlay must cover the viewport and
+        // the Simpan button must be on-screen (regression: sheet trapped inside the section).
+        const forms = [['upcoming', /Tambah Slot/], ['panel', /Tambah Panel/], ['panduan', /Tambah Dokumen/],
+          ['peringatan', /Tambah Peringatan/], ['kitab', /Tambah Kitab/], ['kitab', /\+ Tambah skrip/],
+          ['youtube', /Tambah Episod/]];
+        for (const [t, name] of forms) {
+          await go(mp, t);
+          await mp.evaluate(() => window.scrollTo(0, 300));
+          await mp.getByRole('button', { name }).click();
+          const g = await mp.evaluate(() => {
+            const d = document.querySelector('div[role="dialog"]');
+            const o = d.getBoundingClientRect();
+            const save = [...d.querySelectorAll('button')].find((x) => /Simpan|Hantar/.test(x.textContent)).getBoundingClientRect();
+            return { o: [o.x, o.y, o.width, o.height], vw: innerWidth, vh: innerHeight, saveTop: save.top, saveBottom: save.bottom, inBody: d.parentElement === document.body };
+          });
+          assert.ok(g.inBody, `${t}: dialog portalled to body`);
+          assert.deepEqual(g.o.map(Math.round), [0, 0, g.vw, g.vh], `${dev} ${t}: overlay covers viewport`);
+          assert.ok(g.saveTop >= 0 && g.saveBottom <= g.vh + 0.5, `${dev} ${t}: Simpan visible (${g.saveBottom} > ${g.vh})`);
+          const fs_ = await mp.locator('div[role="dialog"] input, div[role="dialog"] textarea').first().evaluate((el) => parseFloat(getComputedStyle(el).fontSize));
+          assert.ok(fs_ >= 16, `input font ${fs_}px (iOS zoom)`);
+          await mp.keyboard.press('Escape');
+          await mp.waitForSelector('div[role="dialog"]', { state: 'detached' });
+        }
         await mctx.close();
       });
     }
