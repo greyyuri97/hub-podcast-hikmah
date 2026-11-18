@@ -121,13 +121,13 @@ async function noHorizontalScroll(page, label) {
       assert.equal(await page.locator('text=Demo').count(), 0, 'should not be in demo mode');
     });
 
-    await step('Upcoming: Salin Info WA copies formatted message', async () => {
-      await page.getByRole('button', { name: 'Salin Info WA' }).first().click();
-      await toast(page, /disalin/i);
-      const clip = await page.evaluate(() => navigator.clipboard.readText());
-      assert.match(clip, /\*Tajuk:\* Mengurus Hati/);
-      assert.match(clip, /\*Hari\/Tarikh:\* \w+, \d+ \w+ \d{4}/);
-      assert.match(clip, new RegExp(`${APP_PORT}/#panduan`));
+    await step('Upcoming (public): no "Salin Info WA" button, no card footer, no mention in copy', async () => {
+      const cards = page.locator('#h-upcoming >> xpath=ancestor::section').locator('ul > li');
+      assert.ok(await cards.count() >= 1);
+      assert.equal(await page.getByRole('button', { name: /Salin Info WA|Disalin/ }).count(), 0);
+      assert.equal(await page.getByText('Salin Info WA').count(), 0, 'description must not point to a hidden button');
+      // public cards have no empty admin footer (no stray divider)
+      assert.equal(await cards.first().locator('.border-t').count(), 0);
     });
 
     await step('Hero "Panduan Panel" navigates to Panduan', async () => {
@@ -227,6 +227,19 @@ async function noHorizontalScroll(page, label) {
       await page.click('text=Buka Kunci');
       await page.waitForSelector('button[title="Keluar Mod Admin"]');
       rt.cache.clear(); // reset brute-force counter
+    });
+
+    await step('Admin Upcoming: "Salin Info WA" visible on every card and copies formatted message', async () => {
+      await go(page, 'upcoming');
+      const cards = page.locator('#h-upcoming >> xpath=ancestor::section').locator('ul > li');
+      const n = await cards.count();
+      assert.equal(await page.getByRole('button', { name: 'Salin Info WA' }).count(), n);
+      await page.getByRole('button', { name: 'Salin Info WA' }).first().click();
+      await toast(page, /disalin/i);
+      const clip = await page.evaluate(() => navigator.clipboard.readText());
+      assert.match(clip, /\*Tajuk:\* Mengurus Hati/);
+      assert.match(clip, /\*Hari\/Tarikh:\* \w+, \d+ \w+ \d{4}/);
+      assert.match(clip, new RegExp(`${APP_PORT}/#panduan`));
     });
 
     await step('Admin Upcoming: add (hari auto) / edit / reorder / delete', async () => {
@@ -361,6 +374,10 @@ async function noHorizontalScroll(page, label) {
 
     await step('After logout: owner\'s Done item is locked, reply visible', async () => {
       await page.click('button[title="Keluar Mod Admin"]');
+      // Salin Info WA disappears again as soon as admin mode is locked
+      await go(page, 'upcoming');
+      assert.equal(await page.getByRole('button', { name: 'Salin Info WA' }).count(), 0);
+      await go(page, 'cadangan');
       const b = page.locator('li', { hasText: 'Cadangan E2E' });
       await b.locator('text=Dikunci').waitFor();
       assert.equal(await b.locator('button[aria-label="Edit cadangan"]').count(), 0);
