@@ -1,0 +1,72 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ---------- Design tokens (DESIGN_SYSTEM.md — Islamic Modern) ---------- */
+:root {
+  --c-bg: 250 249 246;        /* #FAF9F6 Warm Off-White (60%) */
+  --c-surface: 255 255 255;   /* card surface on light */
+  --c-brand: 15 76 58;        /* #0F4C3A Deep Emerald (30%) */
+  --c-on-brand: 250 249 246;
+  --c-accent: 197 160 89;     /* #C5A059 Muted Gold (10%) */
+  --c-on-accent: 30 41 59;    /* charcoal on gold = 6:1 */
+  --c-primary: 15 76 58;      /* emphasis text / active icons */
+  --c-ink: 30 41 59;          /* #1E293B */
+  --c-muted: 100 116 139;     /* #64748B */
+  --c-line: 226 232 240;      /* #E2E8F0 */
+  --c-danger: 180 35 24;
+  color-scheme: light;
+}
+.dark {
+  --c-bg: 8 28 21;            /* #081C15 Deep Forest Black */
+  --c-surface: 19 46 37;      /* #132E25 Dark Slate Emerald */
+  --c-brand: 19 46 37;
+  --c-on-brand: 241 245 249;
+  --c-accent: 212 175 55;     /* #D4AF37 Champagne Gold */
+  --c-on-accent: 8 28 21;
+  --c-primary: 212 175 55;    /* active states use gold in dark */
+  --c-ink: 241 245 249;       /* #F1F5F9 */
+  --c-muted: 148 163 184;     /* #94A3B8 */
+  --c-line: 30 63 51;         /* #1E3F33 */
+  --c-danger: 248 113 113;
+  color-scheme: dark;
+}
+
+html { -webkit-tap-highlight-color: transparent; scroll-behavior: smooth; }
+body {
+  @apply bg-bg text-ink font-sans antialiased;
+  min-height: 100dvh;
+}
+
+@layer components {
+  .card { @apply bg-surface border border-line rounded-card shadow-soft; }
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-btn px-4 py-2.5 text-sm font-semibold
+      transition active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none
+      focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg;
+  }
+  .btn-gold { @apply btn bg-accent text-on-accent hover:brightness-105 shadow-sm; }
+  .btn-brand { @apply btn bg-brand text-on-brand hover:brightness-110 dark:border dark:border-accent/40; }
+  .btn-ghost { @apply btn text-ink hover:bg-ink/5 border border-line; }
+  .btn-icon {
+    @apply inline-flex h-9 w-9 items-center justify-center rounded-btn text-muted transition
+      hover:bg-ink/5 hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent;
+  }
+  .input {
+    @apply w-full rounded-btn border border-line bg-bg px-3.5 py-2.5 text-sm text-ink placeholder:text-muted/70
+      focus:outline-none focus:ring-2 focus:ring-accent/60 focus:border-accent;
+  }
+  .label { @apply mb-1.5 block text-xs font-semibold uppercase tracking-wider text-muted; }
+  .chip { @apply inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold; }
+  .section-title { @apply text-xl font-bold tracking-tight text-ink sm:text-2xl; }
+  .arabic { @apply font-arabic; line-height: 1.9; }
+}
+
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { scrollbar-width: none; }
+
+@keyframes fade-up { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+.animate-fade-up { animation: fade-up .28s ease-out both; }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+}

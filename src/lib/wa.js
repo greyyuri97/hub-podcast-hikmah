@@ -1,0 +1,24 @@
+import { CONFIG } from '../config.js';
+import { formatTarikh } from './utils.js';
+
+export const hubUrl = () => CONFIG.HUB_URL || `${window.location.origin}${window.location.pathname}`;
+
+/** WhatsApp-formatted announcement (*bold*, _italic_). */
+export function buildWaMessage(item) {
+  const lines = [
+    '*🎙️ PODCAST HIKMAH — MAKLUMAN RAKAMAN*',
+    '',
+    `📌 *Tajuk:* ${item.tajuk}`,
+    `📅 *Hari/Tarikh:* ${item.hari ? `${item.hari}, ` : ''}${formatTarikh(item.tarikh)}`,
+  ];
+  if (item.masa) lines.push(`⏰ *Masa:* ${item.masa}`);
+  if (item.panel) lines.push(`👥 *Panel:* ${item.panel}`);
+  lines.push(
+    '',
+    'Panel & moderator dijemput menyemak *Panduan Panel*, peringatan Syeikhuna serta maklumat lanjut di hub rasmi:',
+    `🔗 ${hubUrl()}#panduan`,
+    '',
+    '_Jazakumullahu khairan._',
+  );
+  return lines.join('\n');
+}

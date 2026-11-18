@@ -1,1 +1,53 @@
-# hub-podcast-hikmah
+# HUB PODCAST HIKMAH 🎙️
+
+Progressive Web App yang mobile-first dan berfungsi sebagai pusat maklumat untuk penganjur, moderator dan panel Podcast Hikmah. Hantar satu pautan kepada panel baharu dan mereka boleh baca semuanya sendiri, jadi penerangan yang sama tak perlu diulang dalam group WhatsApp.
+
+**Stack:** React 18 · Vite 5 · Tailwind CSS 3 · Google Sheets + Apps Script (backend percuma) · GitHub Pages
+**Reka bentuk:** *Islamic Modern* ([`DESIGN_SYSTEM.md`](DESIGN_SYSTEM.md)) dengan Mod Cerah & Gelap
+
+## Ciri utama
+
+| Seksyen | Ringkasan |
+|---|---|
+| **Hero Spotlight** | Podcast terdekat, kiraan hari dan pintasan ke Panduan Panel |
+| **Upcoming Podcast** | Kad jadual (Hari, Tarikh, Masa, Tajuk, Panel) dengan butang **Salin Info WA**. Admin boleh tambah, edit, susun dan padam |
+| **List Panel** | Direktori panel dengan carian dan tapisan Akan datang / Lepas |
+| **Panduan Panel** | Kad muat turun PDF dari Google Drive |
+| **Peringatan Syeikhuna** | Kad petikan berbentuk *speech bubble* dengan sokongan teks Arab (Amiri) |
+| **Promosi Kitab** | Penjejak kekerapan promosi dengan butang +/− yang segerak ke Sheets, serta kad skrip promosi |
+| **Episode Podcast YT** | Galeri yang mengekstrak ID video secara automatik (watch, youtu.be, shorts, live, embed), dengan pilihan thumbnail tersuai |
+| **Cadangan** | Orang awam boleh hantar dan edit cadangan sendiri. Admin boleh tandakan *Done* (cadangan itu terus dikunci) dan beri maklum balas. Tapisan status tersedia |
+
+Ciri lain:
+- **Stale-while-revalidate:** data terakhir dipaparkan serta-merta dari `localStorage`, kemudian disegerak di latar belakang dengan penunjuk segerak.
+- **PWA:** `manifest.json`, service worker, ikon *maskable* dan *Add to Home Screen*.
+- **Mod Admin tersembunyi:** ketik © di footer 5× (atau ikon 🔒), kemudian masukkan PIN yang disahkan oleh server.
+- **Anti-spam:** *honeypot*, *cooldown* 30 saat, had panjang teks, had kadar global di server, perlindungan *formula injection*, dan pemilikan cadangan disahkan dengan hash SHA-256.
+- **Mod Demo:** berfungsi terus tanpa backend (data contoh BM dalam `localStorage`).
+
+## Mula cepat
+
+```bash
+npm install
+npm run dev        # http://localhost:5173 — Mod Demo, PIN admin: 1234
+npm run build      # output ke dist/
+```
+
+## Sambung ke Google Sheets
+
+Lihat **[SETUP.md](SETUP.md)** untuk panduan langkah demi langkah: cipta 7 tab, deploy `Code.gs`, dan tampal URL ke `src/config.js`.
+
+## Struktur
+
+```
+├── DESIGN_SYSTEM.md            # token warna, tipografi, peraturan UI
+├── SETUP.md                    # panduan backend & deploy
+├── google-apps-script/Code.gs  # API Web App (salin ke Apps Script)
+├── public/                     # manifest.json, sw.js, icons/
+├── scripts/generate-icons.mjs  # render ikon SVG → PNG (npm run icons)
+└── src/
+    ├── config.js               # ← tampal GAS_URL di sini
+    ├── lib/                    # api (live+mock), store (SWR), schema, seed, utils
+    ├── components/             # Header, Hero, Footer, UI primitives, corak geometri
+    └── sections/               # 7 seksyen
+```
