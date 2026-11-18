@@ -1,0 +1,24 @@
+{
+  "name": "Hub Podcast Hikmah",
+  "short_name": "Hub Hikmah",
+  "description": "Pusat maklumat untuk penganjur, moderator dan panel Podcast Hikmah.",
+  "id": "./",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#FAF9F6",
+  "theme_color": "#0F4C3A",
+  "lang": "ms",
+  "categories": ["education", "productivity"],
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
+    { "src": "icons/icon.svg", "sizes": "any", "type": "image/svg+xml" }
+  ],
+  "shortcuts": [
+    { "name": "Panduan Panel", "url": "./#panduan", "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }] },
+    { "name": "Upcoming Podcast", "url": "./#upcoming", "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }] }
+  ]
+}

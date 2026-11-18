@@ -1,0 +1,206 @@
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { api } from './api.js';
+import { emptyDB } from './schema.js';
+import { buildSeed } from './seed.js';
+import { storage, store, uid } from './utils.js';
+
+const CACHE_KEY = 'hph_cache_v1';
+const MINE_KEY = 'hph_my_cadangan';   // { [id]: ownerKey }
+const PIN_KEY = 'hph_admin_pin';      // sessionStorage only
+
+const DataCtx = createContext(null);
+const ToastCtx = createContext(() => {});
+
+export const useData = () => useContext(DataCtx);
+export const useToast = () => useContext(ToastCtx);
+
+function readPin() {
+  try { return sessionStorage.getItem(PIN_KEY) || ''; } catch { return ''; }
+}
+
+export function DataProvider({ children }) {
+  // Stale-while-revalidate: render cached JSON instantly (or seed on very first mock run).
+  const cached = storage(CACHE_KEY, null);
+  const [db, setDb] = useState(() => cached?.data || (api.mode === 'mock' ? buildSeed() : emptyDB()));
+  const [lastSync, setLastSync] = useState(cached?.at || null);
+  const [syncing, setSyncing] = useState(false);
+  const [error, setError] = useState(null);
+  const [hasData, setHasData] = useState(Boolean(cached?.data) || api.mode === 'mock');
+  const [pin, setPin] = useState(readPin);
+  const [mine, setMine] = useState(() => storage(MINE_KEY, {}));
+  const [toasts, setToasts] = useState([]);
+  const pending = useRef(0);
+
+  const toast = useCallback((msg, type = 'ok') => {
+    const id = uid();
+    setToasts((t) => [...t, { id, msg, type }]);
+    setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), 3200);
+  }, []);
+
+  const refresh = useCallback(async ({ silent = true } = {}) => {
+    setSyncing(true);
+    try {
+      const data = await api.getAll();
+      const merged = { ...emptyDB(), ...data };
+      // Don't clobber optimistic state while writes are in flight.
+      if (pending.current === 0) setDb(merged);
+      const at = new Date().toISOString();
+      store(CACHE_KEY, { data: merged, at });
+      setLastSync(at);
+      setHasData(true);
+      setError(null);
+    } catch (e) {
+      setError(e.message || 'Gagal menyegerak');
+      if (!silent) toast('Gagal menyegerak data. Memaparkan salinan terakhir.', 'err');
+    } finally {
+      setSyncing(false);
+    }
+  }, [toast]);
+
+  useEffect(() => {
+    refresh();
+    const onFocus = () => document.visibilityState === 'visible' && refresh();
+    document.addEventListener('visibilitychange', onFocus);
+    return () => document.removeEventListener('visibilitychange', onFocus);
+  }, [refresh]);
+
+  const persistLocal = (next) => store(CACHE_KEY, { data: next, at: lastSync });
+
+  /** Optimistic mutation: apply locally, call backend, reconcile. */
+  const mutate = useCallback(async (optimistic, payload, okMsg) => {
+    let snapshot;
+    setDb((cur) => {
+      snapshot = cur;
+      const next = optimistic(cur);
+      persistLocal(next);
+      return next;
+    });
+    pending.current += 1;
+    setSyncing(true);
+    try {
+      const res = await api.post({ ...payload, pin: pin || undefined });
+      if (okMsg) toast(okMsg);
+      return res;
+    } catch (e) {
+      setDb(snapshot);
+      persistLocal(snapshot);
+      toast(e.message || 'Ralat tidak dijangka', 'err');
+      return null; // callers treat null as failure
+    } finally {
+      pending.current -= 1;
+      setSyncing(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pin, toast, lastSync]);
+
+  const replaceRow = (sheet, tempId, row) =>
+    setDb((cur) => {
+      const next = { ...cur, [sheet]: cur[sheet].map((r) => (r.id === tempId ? row : r)) };
+      persistLocal(next);
+      return next;
+    });
+
+  const actions = useMemo(() => ({
+    async create(sheet, item, msg = 'Berjaya ditambah') {
+      const tempId = uid('tmp_');
+      const isPublicCad = sheet === 'CADANGAN';
+      const ownerKey = isPublicCad ? uid('k_') + uid() : undefined;
+      const row = await mutate(
+        (cur) => ({ ...cur, [sheet]: [...cur[sheet], { ...item, id: tempId }] }),
+        { action: 'create', sheet, item, ownerKey },
+        msg,
+      );
+      if (!row) return null;
+      replaceRow(sheet, tempId, row);
+      if (isPublicCad && row?.id) {
+        setMine((m) => {
+          const n = { ...m, [row.id]: ownerKey };
+          store(MINE_KEY, n);
+          return n;
+        });
+      }
+      return row;
+    },
+    async update(sheet, id, patch, msg = 'Perubahan disimpan') {
+      const row = await mutate(
+        (cur) => ({ ...cur, [sheet]: cur[sheet].map((r) => (r.id === id ? { ...r, ...patch } : r)) }),
+        { action: 'update', sheet, id, patch, ownerKey: mine[id] },
+        msg,
+      );
+      if (row?.id) replaceRow(sheet, id, row);
+      return row;
+    },
+    remove(sheet, id) {
+      return mutate(
+        (cur) => ({ ...cur, [sheet]: cur[sheet].filter((r) => r.id !== id) }),
+        { action: 'delete', sheet, id },
+        'Rekod dipadam',
+      );
+    },
+    reorder(sheet, ids) {
+      return mutate(
+        (cur) => ({
+          ...cur,
+          [sheet]: cur[sheet].map((r) => {
+            const i = ids.indexOf(r.id);
+            return i >= 0 ? { ...r, order: i + 1 } : r;
+          }),
+        }),
+        { action: 'reorder', sheet, ids },
+      );
+    },
+    increment(sheet, id, delta) {
+      return mutate(
+        (cur) => ({
+          ...cur,
+          [sheet]: cur[sheet].map((r) =>
+            r.id === id ? { ...r, bilangan: Math.max(0, (Number(r.bilangan) || 0) + delta) } : r,
+          ),
+        }),
+        { action: 'increment', sheet, id, delta },
+      );
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }), [mutate, mine]);
+
+  const login = useCallback(async (p) => {
+    await api.post({ action: 'verifyPin', pin: p });
+    try { sessionStorage.setItem(PIN_KEY, p); } catch { /* noop */ }
+    setPin(p);
+    toast('Mod Admin diaktifkan');
+  }, [toast]);
+
+  const logout = useCallback(() => {
+    try { sessionStorage.removeItem(PIN_KEY); } catch { /* noop */ }
+    setPin('');
+    toast('Keluar dari Mod Admin');
+  }, [toast]);
+
+  const value = {
+    db, syncing, error, lastSync, hasData, mode: api.mode,
+    isAdmin: Boolean(pin), login, logout,
+    isMine: (id) => Boolean(mine[id]),
+    refresh, toast, ...actions,
+  };
+
+  return (
+    <ToastCtx.Provider value={toast}>
+      <DataCtx.Provider value={value}>
+        {children}
+        <div className="pointer-events-none fixed inset-x-0 bottom-4 z-[60] flex flex-col items-center gap-2 px-4 pb-[env(safe-area-inset-bottom)]">
+          {toasts.map((t) => (
+            <div
+              key={t.id}
+              role="status"
+              className={`animate-fade-up max-w-sm rounded-btn px-4 py-2.5 text-sm font-medium shadow-soft ${
+                t.type === 'err' ? 'bg-danger text-white' : 'bg-ink text-bg'
+              }`}
+            >
+              {t.msg}
+            </div>
+          ))}
+        </div>
+      </DataCtx.Provider>
+    </ToastCtx.Provider>
+  );
+}
