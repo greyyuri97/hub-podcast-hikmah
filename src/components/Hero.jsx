@@ -1,6 +1,6 @@
 import { ArrowRight, CalendarClock, Mic2, Users } from 'lucide-react';
 import { useData } from '../lib/store.jsx';
-import { byOrder, daysUntil, formatTarikh, relativeLabel } from '../lib/utils.js';
+import { byOrder, daysUntil, formatTarikh, hariOf, relativeLabel } from '../lib/utils.js';
 import { StarPattern } from './Pattern.jsx';
 
 export function nextUpcoming(rows) {
@@ -38,7 +38,7 @@ export function Hero({ goTo }) {
               <div className="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-sm text-on-brand/85">
                 <span className="inline-flex items-center gap-1.5">
                   <CalendarClock size={16} className="text-accent" />
-                  {next.hari}, {formatTarikh(next.tarikh)}{next.masa ? ` · ${next.masa}` : ''}
+                  {hariOf(next)}, {formatTarikh(next.tarikh)}{next.masa ? ` · ${next.masa}` : ''}
                 </span>
                 {next.panel && (
                   <span className="inline-flex items-center gap-1.5"><Users size={16} className="text-accent" />{next.panel}</span>
@@ -56,8 +56,14 @@ export function Hero({ goTo }) {
         <div className="flex flex-col gap-3 sm:flex-row md:flex-col md:items-end">
           {next && (
             <div className="flex items-baseline gap-2 md:justify-end">
-              <span className="text-4xl font-extrabold tabular-nums text-accent">{n === 0 ? 'Hari ini' : n}</span>
-              {n > 0 && <span className="text-sm font-medium text-on-brand/75">{n === 1 ? 'hari lagi' : 'hari lagi'}</span>}
+              {n === 0 ? (
+                <span className="text-3xl font-extrabold text-accent">Hari ini</span>
+              ) : (
+                <>
+                  <span className="text-4xl font-extrabold tabular-nums text-accent">{n}</span>
+                  <span className="text-sm font-medium text-on-brand/75">hari lagi</span>
+                </>
+              )}
               <span className="sr-only">{relativeLabel(next.tarikh)}</span>
             </div>
           )}

@@ -34,6 +34,9 @@ export const addDays = (n, from = new Date()) => {
   return toISO(d);
 };
 
+/** Stored `hari`, or derived from the date when the sheet cell was left blank. */
+export const hariOf = (r) => r?.hari || hariFromISO(r?.tarikh);
+
 export function hariFromISO(s) {
   const d = parseISO(s);
   return d ? HARI[d.getDay()] : '';
@@ -81,7 +84,8 @@ export function getYouTubeId(url) {
   } catch {
     /* fall through */
   }
-  const m = s.match(/(?:v=|youtu\.be\/|embed\/|shorts\/|live\/)([\w-]{11})/);
+  // (?![\w-]) => exactly 11 chars; never silently truncate a longer bogus id
+  const m = s.match(/(?:v=|youtu\.be\/|embed\/|shorts\/|live\/)([\w-]{11})(?![\w-])/);
   return m ? m[1] : null;
 }
 const valid = (id) => (id && /^[\w-]{11}$/.test(id) ? id : null);
@@ -102,6 +106,7 @@ export async function copyText(text) {
     ta.style.cssText = 'position:fixed;opacity:0;left:-9999px';
     document.body.appendChild(ta);
     ta.select();
+    ta.setSelectionRange(0, text.length); // iOS Safari
     let ok = false;
     try { ok = document.execCommand('copy'); } catch { ok = false; }
     ta.remove();

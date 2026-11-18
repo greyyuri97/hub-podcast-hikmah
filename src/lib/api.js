@@ -13,26 +13,44 @@ const PUBLIC_FIELDS_CADANGAN = ['tarikh', 'catatan'];
 const MAX_CATATAN = 1000;
 
 /* ------------------------------- LIVE ---------------------------------- */
-async function liveGet() {
-  const res = await fetch(`${CONFIG.GAS_URL}?action=getAll&t=${Date.now()}`, { redirect: 'follow' });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  const json = await res.json();
-  if (!json.ok) throw new Error(json.error || 'Gagal memuatkan data');
+const TIMEOUT_MS = 25_000; // Apps Script cold starts can take several seconds
+
+async function request(url, init, fallbackMsg) {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
+  let res;
+  try {
+    res = await fetch(url, { redirect: 'follow', ...init, signal: ctrl.signal });
+  } catch (e) {
+    throw new Error(e.name === 'AbortError' ? 'Pelayan lambat bertindak balas. Cuba lagi.' : 'Tiada sambungan ke pelayan');
+  } finally {
+    clearTimeout(timer);
+  }
+  if (!res.ok) throw new Error(`Ralat pelayan (HTTP ${res.status})`);
+  let json;
+  try {
+    json = await res.json();
+  } catch {
+    // Usually an HTML login/error page: deployment not set to "Anyone" or URL is wrong.
+    throw new Error('Respons tidak sah daripada Apps Script. Semak URL & akses "Anyone".');
+  }
+  if (!json || !json.ok) throw new Error((json && json.error) || fallbackMsg);
   return json.data;
 }
 
-async function livePost(payload) {
-  const res = await fetch(CONFIG.GAS_URL, {
-    method: 'POST',
-    redirect: 'follow',
-    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-    body: JSON.stringify(payload),
-  });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  const json = await res.json();
-  if (!json.ok) throw new Error(json.error || 'Permintaan gagal');
-  return json.data;
-}
+const liveGet = () => request(`${CONFIG.GAS_URL}?action=getAll&t=${Date.now()}`, {}, 'Gagal memuatkan data');
+
+const livePost = (payload) =>
+  request(
+    CONFIG.GAS_URL,
+    {
+      method: 'POST',
+      // text/plain = CORS "simple request" (no OPTIONS preflight, which Apps Script can't answer)
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify(payload),
+    },
+    'Permintaan gagal',
+  );
 
 /* ------------------------------- MOCK ---------------------------------- */
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));

@@ -125,7 +125,11 @@ function readSheet_(name) {
     header.forEach(function (h, c) {
       if (!h) return;
       var v = row[c];
-      if (v instanceof Date) v = Utilities.formatDate(v, tz, h === 'created_at' ? "yyyy-MM-dd'T'HH:mm:ss" : 'yyyy-MM-dd');
+      if (v instanceof Date) {
+        // Time-only cells (e.g. "9:00" typed into a non-text cell) come back as 1899-12-30 dates.
+        if (v.getFullYear() < 1900) v = Utilities.formatDate(v, tz, 'HH:mm');
+        else v = Utilities.formatDate(v, tz, h === 'created_at' ? "yyyy-MM-dd'T'HH:mm:ss" : 'yyyy-MM-dd');
+      }
       if (NUMERIC_COLS[h]) v = Number(v) || 0;
       else v = v === null || v === undefined ? '' : String(v);
       obj[h] = v;
@@ -343,12 +347,13 @@ function seedSampleData() {
     obj.id = Utilities.getUuid().slice(0, 12);
     sh.appendRow(HEADERS[name].map(function (h) { return cell_(h, obj[h]); }));
   };
-  add('UPCOMING', { order: 1, hari: '', tarikh: t, masa: '9:00 malam', tajuk: 'Mengurus Hati di Era Media Sosial', panel: 'Ustaz Hafiz Rahman & Dr. Nurul Huda' });
+  var HARI = ['Ahad', 'Isnin', 'Selasa', 'Rabu', 'Khamis', 'Jumaat', 'Sabtu'];
+  add('UPCOMING', { order: 1, hari: HARI[new Date().getDay()], tarikh: t, masa: '9:00 malam', tajuk: 'Mengurus Hati di Era Media Sosial', panel: 'Ustaz Hafiz Rahman & Dr. Nurul Huda' });
   add('PANEL', { tajuk: 'Mengurus Hati di Era Media Sosial', nama_panel: 'Ustaz Hafiz Rahman', tarikh: t });
   add('PANDUAN', { order: 1, kategori: 'PANEL', tajuk: 'Panduan Lengkap Panel Jemputan', keterangan: 'Aliran rakaman & persediaan.', gdrive_url: 'https://drive.google.com/file/d/GANTI_ID/view' });
   add('PANDUAN', { order: 2, kategori: 'SKRIP_PROMOSI', tajuk: 'Contoh Skrip Promosi Kitab', keterangan: 'Skrip 60–90 saat.', gdrive_url: 'https://drive.google.com/file/d/GANTI_ID/view' });
   add('PERINGATAN', { order: 1, petikan: 'Niatkan setiap perkongsian kerana Allah.', arab: 'إِنَّمَا الأَعْمَالُ بِالنِّيَّاتِ', konteks: 'Taklimat Panel' });
   add('KITAB', { nama_kitab: 'Riyadhus Solihin', bilangan: 0 });
-  add('YOUTUBE', { order: 1, tajuk: 'EP01 · Pengenalan', youtube_url: 'https://youtu.be/GANTI_ID_VID', custom_thumbnail: '', tarikh: t });
+  add('YOUTUBE', { order: 1, tajuk: 'EP01 · Pengenalan', youtube_url: 'https://youtu.be/CONTOHEP001', custom_thumbnail: '', tarikh: t });
   Logger.log('Data contoh ditambah.');
 }

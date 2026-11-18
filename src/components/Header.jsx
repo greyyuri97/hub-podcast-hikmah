@@ -9,6 +9,11 @@ function useTheme() {
   const [dark, setDark] = useState(() => document.documentElement.classList.contains('dark'));
   useEffect(() => {
     document.documentElement.classList.toggle('dark', dark);
+    // Keep the browser/status-bar colour in sync with a manual toggle.
+    document.querySelectorAll('meta[name="theme-color"]').forEach((m) => {
+      m.setAttribute('content', dark ? '#081C15' : '#0F4C3A');
+      m.removeAttribute('media');
+    });
   }, [dark]);
   const toggle = () =>
     setDark((d) => {
@@ -31,7 +36,7 @@ export function SyncBadge() {
       title={error ? `Ralat: ${error}. Klik untuk cuba lagi.` : 'Klik untuk segerak semula'}
       className={cx('hidden items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium hover:bg-ink/5 sm:inline-flex', tone)}
     >
-      {icon}<span className="whitespace-nowrap lg:hidden 2xl:inline">{text}</span>
+      {icon}<span className={cx('whitespace-nowrap', !error && 'lg:hidden 2xl:inline')}>{text}</span>
       {mode === 'mock' && <span className="ml-1 rounded-full bg-accent/20 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-ink">Demo</span>}
     </button>
   );
@@ -39,7 +44,7 @@ export function SyncBadge() {
 
 export function Header({ tab, setTab }) {
   const [dark, toggle] = useTheme();
-  const { isAdmin, logout, syncing } = useData();
+  const { isAdmin, logout, syncing, error, refresh } = useData();
   const scroller = useRef(null);
 
   // keep active tab visible on mobile
@@ -79,7 +84,13 @@ export function Header({ tab, setTab }) {
         </nav>
 
         <div className="ml-auto flex items-center gap-1 lg:ml-2">
-          <span className={cx('h-2 w-2 rounded-full sm:hidden', syncing ? 'animate-pulse bg-accent' : 'bg-transparent')} aria-hidden />
+          {error && !syncing ? (
+            <button className="btn-icon text-accent sm:hidden" onClick={() => refresh({ silent: false })} aria-label="Luar talian — cuba segerak semula">
+              <CloudOff size={17} />
+            </button>
+          ) : (
+            <span className={cx('h-2 w-2 rounded-full sm:hidden', syncing ? 'animate-pulse bg-accent' : 'bg-transparent')} aria-hidden />
+          )}
           <SyncBadge />
           {isAdmin && (
             <button onClick={logout} className="chip bg-accent text-on-accent hover:brightness-105" title="Keluar Mod Admin">

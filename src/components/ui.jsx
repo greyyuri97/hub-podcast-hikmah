@@ -4,10 +4,14 @@ import { cx } from '../lib/utils.js';
 
 export function Modal({ open, onClose, title, children, footer, size = 'md' }) {
   const ref = useRef(null);
+  const closeRef = useRef(onClose);
+  closeRef.current = onClose;
+  // Depend on `open` only: parents pass inline onClose, and re-running this effect
+  // on every parent render would steal focus back to the first field mid-typing.
   useEffect(() => {
     if (!open) return;
     const prev = document.activeElement;
-    const onKey = (e) => e.key === 'Escape' && onClose();
+    const onKey = (e) => e.key === 'Escape' && closeRef.current();
     document.addEventListener('keydown', onKey);
     document.body.style.overflow = 'hidden';
     setTimeout(() => ref.current?.querySelector('input,textarea,select,button')?.focus(), 30);
@@ -16,7 +20,7 @@ export function Modal({ open, onClose, title, children, footer, size = 'md' }) {
       document.body.style.overflow = '';
       prev?.focus?.();
     };
-  }, [open, onClose]);
+  }, [open]);
   if (!open) return null;
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-label={title}>

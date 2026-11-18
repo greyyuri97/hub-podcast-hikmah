@@ -8,7 +8,8 @@
  */
 export const CONFIG = {
   // e.g. 'https://script.google.com/macros/s/AKfycb.../exec'
-  GAS_URL: '',
+  // (A build-time env var VITE_GAS_URL overrides this, handy for CI/testing.)
+  GAS_URL: import.meta.env.VITE_GAS_URL || '',
 
   // Public link included in "Salin Info WA" messages.
   // Leave empty to auto-use the current page address.
