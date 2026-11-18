@@ -13,9 +13,11 @@ const FIELDS = [
   { name: 'panel', label: 'Panel', type: 'textarea', rows: 2, required: true, placeholder: 'cth. Ustaz A & Dr. B' },
 ];
 
+/** Admin-only: the component itself refuses to render for public users, wherever it is placed. */
 function CopyWa({ item }) {
   const [done, setDone] = useState(false);
-  const { toast } = useData();
+  const { toast, isAdmin } = useData();
+  if (!isAdmin) return null;
   const onCopy = async () => {
     const ok = await copyText(buildWaMessage(item));
     if (ok) {
@@ -44,7 +46,11 @@ export default function Upcoming() {
       <SectionHeader
         eyebrow="Jadual"
         title={<span id="h-upcoming">Upcoming Podcast</span>}
-        desc="Jadual rakaman & siaran langsung. Tekan “Salin Info WA” untuk kongsi makluman lengkap ke group."
+        desc={
+          isAdmin
+            ? 'Jadual rakaman & siaran langsung. Tekan “Salin Info WA” untuk kongsi makluman lengkap ke group.'
+            : 'Jadual rakaman & siaran langsung podcast yang akan datang.'
+        }
         action={isAdmin && <AddButton onClick={() => setEditing({ tarikh: todayISO(), hari: hariFromISO(todayISO()) })}>Tambah Slot</AddButton>}
       />
 
@@ -77,9 +83,10 @@ export default function Upcoming() {
                     <p className="mt-1.5 flex items-start gap-1.5 text-[15px] leading-snug text-muted wrap-anywhere sm:text-sm"><Users size={15} className="mt-0.5 shrink-0" />{r.panel}</p>
                   </div>
                 </div>
-                <div className="mt-auto flex flex-col gap-1 border-t border-line pt-3.5 sm:flex-row sm:items-center sm:justify-between sm:gap-2">
-                  <CopyWa item={r} />
-                  {isAdmin && (
+                {/* Admin-only footer: Salin Info WA + reorder/edit/delete. Public cards end at the content. */}
+                {isAdmin && (
+                  <div className="mt-auto flex flex-col gap-1 border-t border-line pt-3.5 sm:flex-row sm:items-center sm:justify-between sm:gap-2">
+                    <CopyWa item={r} />
                     <RowActions
                       className="justify-end"
                       onUp={i > 0 ? () => reorder('UPCOMING', moved(rows, i, -1)) : undefined}
@@ -87,8 +94,8 @@ export default function Upcoming() {
                       onEdit={() => setEditing(r)}
                       onDelete={() => setDeleting(r)}
                     />
-                  )}
-                </div>
+                  </div>
+                )}
               </li>
             );
           })}
