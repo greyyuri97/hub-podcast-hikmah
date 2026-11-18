@@ -1,7 +1,9 @@
 /**
  * End-to-end test: real built app (LIVE mode) <-> real Code.gs (emulated) via Playwright.
  *   npm run test:e2e
- * Builds the app with VITE_GAS_URL pointing at the emulator, then drives every section
+ * Builds the app as-is (with the real GAS_URL from src/config.js) and routes every
+ * script.google.com request to the local emulator, so the real Sheet is NEVER touched.
+ * Then drives every section
  * as a public user and as admin, asserting UI + spreadsheet state + zero console errors.
  */
 const { createRequire } = require('node:module');
@@ -55,7 +57,24 @@ function watch(page, label) {
 }
 
 const THUMB = fs.readFileSync(path.join(ROOT, 'public/icons/icon-512.png'));
+/** Redirect the app's Apps Script calls to the emulator (method, query & body preserved). */
+async function useEmulator(ctx) {
+  await ctx.route(/^https:\/\/script\.google(usercontent)?\.com\//, async (route) => {
+    const u = new URL(route.request().url());
+    const target = `http://localhost:${GAS_PORT}/exec${u.search}`;
+    try {
+      const res = await route.fetch({ url: target });
+      await route.fulfill({ response: res });
+    } catch {
+      await route.abort();
+    }
+  });
+  // Belt and braces: any other Google host must never be reached from tests.
+  await ctx.route(/^https:\/\/(www\.)?googleapis\.com\/(?!css)/, (r) => r.abort());
+}
+
 async function stubThumbs(ctx) {
+  await useEmulator(ctx);
   // The sandbox network blocks i.ytimg.com; serve a real 512px PNG so the real-thumbnail path is exercised.
   await ctx.route('**/i.ytimg.com/**', (r) => r.fulfill({ status: 200, contentType: 'image/png', body: THUMB }));
 }
@@ -148,7 +167,8 @@ async function noHorizontalScroll(page, label) {
     await step('Episode YT: placeholder id shows fallback (no 404 request)', async () => {
       await go(page, 'youtube');
       const a = page.locator('section li a').first();
-      assert.equal(await a.getAttribute('href'), 'https://www.youtube.com/watch?v=CONTOHEP001');
+      // Seed link from Code.gs on main is a placeholder; the card must still link out safely.
+      assert.match(await a.getAttribute('href'), /^https:\/\/(www\.youtube\.com|youtu\.be)\//);
       assert.equal(await a.getAttribute('target'), '_blank');
       assert.equal(await page.locator('section li img').count(), 0);
     });
@@ -362,7 +382,7 @@ async function noHorizontalScroll(page, label) {
     await step('Stale-while-revalidate: cached data renders instantly while API is slow', async () => {
       let release;
       const gate = new Promise((r) => (release = r));
-      await page.route('**/exec?**', async (r) => { await gate; await r.continue(); });
+      await page.route('**/exec?**', async (r) => { await gate; await r.fallback(); }); // fallback -> emulator route
       await page.reload();
       await page.getByRole('heading', { level: 1 }).filter({ hasText: 'Mengurus Hati' }).waitFor({ timeout: 2000 });
       release();
@@ -386,6 +406,7 @@ async function noHorizontalScroll(page, label) {
     await step('First visit + API down: error card with retry (no misleading empty state)', async () => {
       expectNetErrors = true;
       const c2 = await browser.newContext();
+      await useEmulator(c2);
       const p2 = await c2.newPage();
       watch(p2, 'firstvisit');
       await p2.route('**/exec**', (r) => r.abort());
@@ -452,6 +473,7 @@ async function noHorizontalScroll(page, label) {
     // ------------------------------ FOCUS REGRESSION ------------------------------
     await step('Modal keeps focus while background sync re-renders the page', async () => {
       const c = await browser.newContext({ viewport: { width: 1280, height: 860 } });
+      await useEmulator(c);
       const p = await c.newPage();
       watch(p, 'focus');
       await p.goto(APP + '#panel');

@@ -9,7 +9,7 @@
     "preview": "vite preview",
     "icons": "node scripts/generate-icons.mjs",
     "test:api": "node tests/gas-api.test.cjs",
-    "test:e2e": "VITE_GAS_URL=http://localhost:8787/exec vite build --outDir .e2e-dist --emptyOutDir && node tests/e2e.cjs .e2e-dist",
+    "test:e2e": "vite build --outDir .e2e-dist --emptyOutDir && node tests/e2e.cjs .e2e-dist",
     "test": "npm run test:api && npm run test:e2e"
   },
   "dependencies": {
