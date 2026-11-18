@@ -212,7 +212,8 @@ export function DataProvider({ children }) {
     <ToastCtx.Provider value={toast}>
       <DataCtx.Provider value={value}>
         {children}
-        <div className="pointer-events-none fixed inset-x-0 bottom-4 z-[60] flex flex-col items-center gap-2 px-4 pb-[env(safe-area-inset-bottom)]">
+        {/* Top of screen: bottom sheets keep their action buttons at the bottom edge. */}
+        <div className="pointer-events-none fixed inset-x-0 top-0 z-[60] flex flex-col items-center gap-2 px-4 pt-[max(0.75rem,env(safe-area-inset-top))]">
           {toasts.map((t) => (
             <div
               key={t.id}

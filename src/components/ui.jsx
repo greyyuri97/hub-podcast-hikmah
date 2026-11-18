@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { ArrowDown, ArrowUp, Pencil, Trash2, X, Plus, Inbox } from 'lucide-react';
 import { cx } from '../lib/utils.js';
 
@@ -14,32 +15,45 @@ export function Modal({ open, onClose, title, children, footer, size = 'md' }) {
     const onKey = (e) => e.key === 'Escape' && closeRef.current();
     document.addEventListener('keydown', onKey);
     document.body.style.overflow = 'hidden';
-    setTimeout(() => ref.current?.querySelector('input,textarea,select,button')?.focus(), 30);
+    const t = setTimeout(() => {
+      const panel = ref.current;
+      if (!panel) return;
+      // Touch devices: focus the sheet itself. Programmatically focusing an input on iOS
+      // scrolls the visual viewport and can push the sheet off-screen.
+      const touch = window.matchMedia?.('(pointer: coarse)').matches;
+      const field = panel.querySelector('[data-modal-body] input:not([type=hidden]),[data-modal-body] textarea,[data-modal-body] select');
+      (touch || !field ? panel : field).focus({ preventScroll: true });
+    }, 30);
     return () => {
+      clearTimeout(t);
       document.removeEventListener('keydown', onKey);
       document.body.style.overflow = '';
-      prev?.focus?.();
+      prev?.focus?.({ preventScroll: true });
     };
   }, [open]);
   if (!open) return null;
-  return (
+  // Portal to <body>: an ancestor with transform/filter/animation would otherwise become the
+  // containing block for position:fixed (Safari), shrinking the overlay to that ancestor.
+  return createPortal(
     <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-label={title}>
-      <div className="absolute inset-0 bg-black/45 backdrop-blur-[2px]" onClick={onClose} />
+      <div className="absolute inset-0 touch-none bg-black/45 backdrop-blur-[2px]" onClick={onClose} />
       <div
         ref={ref}
+        tabIndex={-1}
         className={cx(
-          'animate-fade-up relative flex max-h-[92dvh] w-full flex-col overflow-hidden rounded-t-[20px] border border-line bg-surface shadow-2xl sm:rounded-card',
+          'animate-fade-up relative flex max-h-[min(92dvh,100%)] w-full flex-col overflow-hidden rounded-t-[20px] border border-line bg-surface shadow-2xl outline-none sm:rounded-card',
           size === 'sm' ? 'sm:max-w-sm' : 'sm:max-w-lg',
         )}
       >
-        <div className="flex items-center justify-between gap-3 border-b border-line px-5 py-4">
+        <div className="flex shrink-0 items-center justify-between gap-3 border-b border-line px-5 py-4">
           <h3 className="text-base font-bold text-ink">{title}</h3>
           <button className="btn-icon -mr-2" onClick={onClose} aria-label="Tutup"><X size={18} /></button>
         </div>
-        <div className="overflow-y-auto px-5 py-5">{children}</div>
-        {footer && <div className="flex justify-end gap-2 border-t border-line px-5 py-3.5 pb-[max(0.875rem,env(safe-area-inset-bottom))]">{footer}</div>}
+        <div data-modal-body className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-5">{children}</div>
+        {footer && <div className="flex shrink-0 justify-end gap-2 border-t border-line px-5 py-3.5 pb-[max(0.875rem,env(safe-area-inset-bottom))]">{footer}</div>}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 

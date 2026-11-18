@@ -67,7 +67,9 @@ body {
 .no-scrollbar { scrollbar-width: none; }
 
 @keyframes fade-up { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
-.animate-fade-up { animation: fade-up .28s ease-out both; }
+/* 'backwards' (not 'both'): no transform lingers after the animation, so this wrapper never
+   becomes a containing block for position:fixed descendants (Safari). */
+.animate-fade-up { animation: fade-up .28s ease-out backwards; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
 }
