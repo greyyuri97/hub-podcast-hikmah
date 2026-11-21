@@ -153,6 +153,43 @@ const test = async (name, fn) => { await fn(); passed++; console.log('  ✓', na
       assert.ok(typeof m.masa === 'string');
     });
 
+    await test('PANEL.tarikh: ISO date and "Belum Ditentukan" round-trip unchanged', async () => {
+      const a = ok(await post({ action: 'create', sheet: 'PANEL', pin: PIN, item: { tajuk: 'Sync A', nama_panel: 'Ustaz A', tarikh: '2026-12-03' } }));
+      const b = ok(await post({ action: 'create', sheet: 'PANEL', pin: PIN, item: { tajuk: 'Sync B', nama_panel: 'Ustaz B', tarikh: 'Belum Ditentukan' } }));
+      let d = ok(await get()).PANEL;
+      assert.equal(d.find((r) => r.id === a.id).tarikh, '2026-12-03');
+      assert.equal(d.find((r) => r.id === b.id).tarikh, 'Belum Ditentukan');
+      // date -> TBD and TBD -> date via update
+      ok(await post({ action: 'update', sheet: 'PANEL', id: a.id, pin: PIN, patch: { tarikh: 'Belum Ditentukan' } }));
+      ok(await post({ action: 'update', sheet: 'PANEL', id: b.id, pin: PIN, patch: { tarikh: '2027-01-15' } }));
+      d = ok(await get()).PANEL;
+      assert.equal(d.find((r) => r.id === a.id).tarikh, 'Belum Ditentukan');
+      assert.equal(d.find((r) => r.id === b.id).tarikh, '2027-01-15');
+      // unknown UI-only fields (e.g. `tbd`) are never written as columns
+      ok(await post({ action: 'create', sheet: 'PANEL', pin: PIN, item: { tajuk: 'X', nama_panel: 'Y', tarikh: '2026-12-09', tbd: false } }));
+      assert.ok(!rt.sheets.get('PANEL').data[0].includes('tbd'));
+    });
+
+    await test('self-healing headers: PANEL tab missing "tarikh" gets it back and dates persist', async () => {
+      const sh = rt.sheets.get('PANEL');
+      const col = sh.data[0].indexOf('tarikh');
+      sh.data.forEach((row) => row.splice(col, 1)); // simulate a hand-made tab without tarikh
+      assert.ok(!sh.data[0].includes('tarikh'));
+      ok(await get()); // a plain read heals the header row
+      assert.equal(sh.data[0].filter((h) => h === 'tarikh').length, 1, 'tarikh appended exactly once');
+      ok(await get());
+      assert.equal(sh.data[0].filter((h) => h === 'tarikh').length, 1, 'idempotent');
+      const c = ok(await post({ action: 'create', sheet: 'PANEL', pin: PIN, item: { tajuk: 'Heal', nama_panel: 'Ustaz H', tarikh: '2026-12-24' } }));
+      assert.equal(ok(await get()).PANEL.find((r) => r.id === c.id).tarikh, '2026-12-24');
+      // healing also works when the very first request is a write
+      const sh2 = rt.sheets.get('KITAB');
+      const bc = sh2.data[0].indexOf('bilangan');
+      sh2.data.forEach((row) => row.splice(bc, 1));
+      const k = ok(await post({ action: 'create', sheet: 'KITAB', pin: PIN, item: { nama_kitab: 'Heal K', bilangan: 3 } }));
+      assert.equal(k.bilangan, 3);
+      assert.equal(ok(await get()).KITAB.find((r) => r.id === k.id).bilangan, 3);
+    });
+
     await test('PIN brute-force guard locks after 10 failures', async () => {
       rt.cache.clear();
       for (let i = 0; i < 10; i++) err(await post({ action: 'verifyPin', pin: 'x' + i }), /PIN salah/);

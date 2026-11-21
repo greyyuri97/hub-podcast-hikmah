@@ -1,14 +1,9 @@
 import { ArrowRight, CalendarClock, ChevronRight, Mic2, Users } from 'lucide-react';
 import { cx } from '../lib/utils.js';
 import { useData } from '../lib/store.jsx';
-import { byOrder, daysUntil, formatTarikh, hariOf, relativeLabel } from '../lib/utils.js';
+import { daysUntil, formatTarikh, hariOf, relativeLabel } from '../lib/utils.js';
+import { nextScheduled } from '../lib/schedule.js';
 import { StarPattern } from './Pattern.jsx';
-
-export function nextUpcoming(rows) {
-  return [...rows]
-    .filter((r) => daysUntil(r.tarikh) !== null && daysUntil(r.tarikh) >= 0)
-    .sort((a, b) => String(a.tarikh).localeCompare(String(b.tarikh)) || byOrder(a, b))[0];
-}
 
 /** Slim, tappable "next podcast" strip used on phones for non-Upcoming tabs. */
 function HeroStrip({ next, n, goTo }) {
@@ -32,7 +27,8 @@ function HeroStrip({ next, n, goTo }) {
 
 export function Hero({ goTo, compact = false }) {
   const { db, hasData } = useData();
-  const next = nextUpcoming(db.UPCOMING);
+  // Nearest dated LIST PANEL entry (today or later) — same source as Upcoming Podcast.
+  const next = nextScheduled(db.PANEL);
   const n = next ? daysUntil(next.tarikh) : null;
 
   return (

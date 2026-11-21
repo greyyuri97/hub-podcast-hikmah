@@ -45,7 +45,8 @@ function serveDist() {
 let passed = 0;
 const step = async (name, fn) => { await fn(); passed++; console.log('  ✓', name); };
 const errors = [];
-let expectNetErrors = false; // set during deliberate offline tests
+let expectNetErrors = false;
+let rt; // emulator runtime (set in main), used by the sync-flow helpers // set during deliberate offline tests
 
 function watch(page, label) {
   page.on('pageerror', (e) => errors.push(`[${label}] pageerror: ${e.message}`));
@@ -101,9 +102,152 @@ async function noHorizontalScroll(page, label) {
   assert.ok(sw <= iw, `${label}: horizontal overflow ${sw} > ${iw}`);
 }
 
+// ---------------- LIST PANEL -> UPCOMING sync flow (desktop + mobile) ----------------
+const HARI = ['Ahad', 'Isnin', 'Selasa', 'Rabu', 'Khamis', 'Jumaat', 'Sabtu'];
+const iso = (n) => { const d = new Date(); d.setDate(d.getDate() + n); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
+const hariOfISO = (s) => { const [y, m, d] = s.split('-').map(Number); return HARI[new Date(y, m - 1, d).getDay()]; };
+const isDatedStr = (t) => /^\d{4}-\d{2}-\d{2}/.test(String(t || ''));
+
+async function addPanel(page, { tajuk, nama, tarikh, tbd = false }) {
+  await go(page, 'panel');
+  await page.getByRole('button', { name: /Tambah Panel/ }).click();
+  await page.fill('#f-tajuk', tajuk);
+  await page.fill('#f-nama_panel', nama);
+  if (tbd) {
+    await page.check('#f-tbd');
+    assert.equal(await page.locator('#f-tarikh').isDisabled(), true, 'date disabled when Belum Ditentukan');
+  } else {
+    await page.fill('#f-tarikh', tarikh);
+    // derived Bahasa Melayu day shown live in the form
+    assert.match(await page.getByTestId('hari-preview').innerText(), new RegExp(`^${hariOfISO(tarikh)}, `));
+  }
+  await page.getByRole('dialog').getByRole('button', { name: 'Simpan' }).click();
+  await toast(page, /Panel disimpan/);
+  await synced(page);
+  await page.waitForSelector('div[role="dialog"]', { state: 'detached' });
+}
+
+async function upcomingSlots(page) {
+  await go(page, 'upcoming');
+  return page.locator('[data-slot]').evaluateAll((els) => els.map((e) => ({
+    id: e.getAttribute('data-slot'),
+    text: e.innerText,
+    panel: e.querySelector('[data-testid="slot-panel"]')?.innerText || '',
+  })));
+}
+
+async function scheduleSyncFlow(page, tag, { checkHero = false } = {}) {
+  const d5 = iso(5);
+  const T = `Sync ${tag} Jadual`;
+  // 1. dated panel + 2nd panelist on same tajuk/date (should merge into ONE slot)
+  await addPanel(page, { tajuk: T, nama: `Ustaz ${tag} A`, tarikh: d5 });
+  await addPanel(page, { tajuk: T, nama: `Dr. ${tag} B`, tarikh: d5 });
+  const rowsA = sheet(rt, 'PANEL').filter((r) => r.tajuk === T);
+  assert.equal(rowsA.length, 2);
+  assert.ok(rowsA.every((r) => r.tarikh === d5), 'tarikh stored as ISO in the Sheet');
+  // 2. Belum Ditentukan
+  await addPanel(page, { tajuk: `TBD ${tag} Tajuk`, nama: `Ustaz ${tag} C`, tbd: true });
+  assert.equal(sheet(rt, 'PANEL').find((r) => r.nama_panel === `Ustaz ${tag} C`).tarikh, 'Belum Ditentukan');
+  await page.locator('li', { hasText: `Ustaz ${tag} C` }).getByText('Belum Ditentukan').waitFor();
+  const dated = page.locator('li', { hasText: `Ustaz ${tag} A` });
+  assert.match(await dated.innerText(), new RegExp(hariOfISO(d5)));
+  // 3. validation: neither date nor Belum Ditentukan -> modal stays open, nothing saved
+  await page.getByRole('button', { name: /Tambah Panel/ }).click();
+  await page.fill('#f-tajuk', `Invalid ${tag}`);
+  await page.fill('#f-nama_panel', 'Tiada Tarikh');
+  await page.getByRole('dialog').getByRole('button', { name: 'Simpan' }).click();
+  await page.waitForTimeout(300);
+  assert.equal(await page.getByRole('dialog').count(), 1, 'form blocked without a date');
+  await page.keyboard.press('Escape');
+  assert.ok(!sheet(rt, 'PANEL').some((r) => r.tajuk === `Invalid ${tag}`));
+
+  // 4. Upcoming: merged slot, hari shown, TBD excluded, nearest first, read-only
+  let slots = await upcomingSlots(page);
+  const mine = slots.filter((x) => x.text.includes(T));
+  assert.equal(mine.length, 1, 'two panelists -> one slot');
+  assert.equal(mine[0].panel, `Ustaz ${tag} A & Dr. ${tag} B`);
+  assert.ok(mine[0].text.includes(hariOfISO(d5)), 'hari on the card');
+  assert.ok(!slots.some((x) => x.text.includes(`TBD ${tag}`)), 'Belum Ditentukan not in Upcoming');
+  const dates = slots.map((x) => x.id.slice(0, 10));
+  assert.deepEqual(dates, [...dates].sort(), 'sorted by nearest date');
+  assert.ok(dates.every((x) => x >= iso(0)), 'no past dates in Upcoming');
+  for (const name of [/Tambah Slot/, /^Edit$/, /^Padam$/, /^Naik$/, /^Turun$/]) {
+    assert.equal(await page.locator('#h-upcoming >> xpath=ancestor::section').getByRole('button', { name }).count(), 0);
+  }
+  assert.equal(await page.getByRole('button', { name: 'Salin Info WA' }).count(), slots.length);
+
+  // 5. Hero = nearest dated panel; changes when that entry becomes Belum Ditentukan
+  if (checkHero) {
+    const nearest = () => {
+      const rows = sheet(rt, 'PANEL').filter((r) => isDatedStr(r.tarikh) && r.tarikh >= iso(0));
+      rows.sort((a, b) => a.tarikh.localeCompare(b.tarikh) || a.tajuk.localeCompare(b.tajuk));
+      return rows[0];
+    };
+    const h1 = () => page.getByRole('heading', { level: 1 }).innerText();
+    const first = nearest();
+    assert.equal((await h1()).trim(), first.tajuk);
+    const sameSlot = sheet(rt, 'PANEL').filter((r) => r.tajuk === first.tajuk && r.tarikh === first.tarikh);
+    for (const r of sameSlot) {
+      await go(page, 'panel');
+      await page.locator(`li[data-panel-id="${r.id}"]`).getByRole('button', { name: 'Edit' }).click();
+      await page.check('#f-tbd');
+      await page.getByRole('dialog').getByRole('button', { name: 'Simpan' }).click();
+      await toast(page, /Panel disimpan/);
+      await synced(page);
+      await page.waitForSelector('div[role="dialog"]', { state: 'detached' });
+    }
+    const second = nearest();
+    await go(page, 'upcoming');
+    await page.waitForFunction((t) => document.querySelector('h1')?.innerText.trim() === t, second.tajuk);
+    // restore so later steps see the original data
+    for (const r of sameSlot) {
+      await go(page, 'panel');
+      await page.locator(`li[data-panel-id="${r.id}"]`).getByRole('button', { name: 'Edit' }).click();
+      await page.uncheck('#f-tbd');
+      await page.fill('#f-tarikh', first.tarikh);
+      await page.getByRole('dialog').getByRole('button', { name: 'Simpan' }).click();
+      await toast(page, /Panel disimpan/);
+      await synced(page);
+      await page.waitForSelector('div[role="dialog"]', { state: 'detached' });
+    }
+    await go(page, 'upcoming');
+    await page.waitForFunction((t) => document.querySelector('h1')?.innerText.trim() === t, first.tajuk);
+  }
+
+  // 6. editing one panelist to Belum Ditentukan updates the merged slot
+  await go(page, 'panel');
+  const idA = sheet(rt, 'PANEL').find((r) => r.nama_panel === `Ustaz ${tag} A`).id;
+  await page.locator(`li[data-panel-id="${idA}"]`).getByRole('button', { name: 'Edit' }).click();
+  assert.equal(await page.inputValue('#f-tarikh'), d5, 'edit form pre-fills the date');
+  await page.check('#f-tbd');
+  await page.getByRole('dialog').getByRole('button', { name: 'Simpan' }).click();
+  await toast(page, /Panel disimpan/);
+  await synced(page);
+  slots = await upcomingSlots(page);
+  assert.equal(slots.find((x) => x.text.includes(T)).panel, `Dr. ${tag} B`);
+
+  // 7. "Urus jadual di List Panel" shortcut
+  await page.getByRole('link', { name: /Urus jadual di List Panel/ }).click();
+  await page.waitForSelector('#h-panel');
+
+  // 8. cleanup: delete test rows -> slot disappears from Upcoming
+  for (const nama of [`Ustaz ${tag} A`, `Dr. ${tag} B`, `Ustaz ${tag} C`]) {
+    const id = sheet(rt, 'PANEL').find((r) => r.nama_panel === nama).id;
+    await go(page, 'panel');
+    await page.locator(`li[data-panel-id="${id}"]`).getByRole('button', { name: 'Padam' }).click();
+    await page.getByRole('dialog').getByRole('button', { name: 'Padam' }).click();
+    await toast(page, /dipadam/);
+    await synced(page);
+  }
+  slots = await upcomingSlots(page);
+  assert.ok(!slots.some((x) => x.text.includes(T)));
+}
+
 // ======================================================================
 (async () => {
-  const { server: gas, rt } = await startServer(GAS_PORT, { pin: PIN });
+  const started = await startServer(GAS_PORT, { pin: PIN });
+  const gas = started.server;
+  rt = started.rt;
   const app = await serveDist();
   const browser = await chromium.launch();
 
@@ -242,55 +386,8 @@ async function noHorizontalScroll(page, label) {
       assert.match(clip, new RegExp(`${APP_PORT}/#panduan`));
     });
 
-    await step('Admin Upcoming: add (hari auto) / edit / reorder / delete', async () => {
-      await go(page, 'upcoming');
-      await page.click('text=Tambah Slot');
-      await page.fill('#f-tarikh', '2026-12-31');
-      assert.equal(await page.inputValue('#f-hari'), 'Khamis');
-      await page.fill('#f-tajuk', 'E2E Slot Tahun Baru');
-      await page.fill('#f-panel', 'Panel E2E');
-      await page.click('button:has-text("Simpan")');
-      await toast(page, /ditambah/);
-      await synced(page);
-      let row = sheet(rt, 'UPCOMING').find((r) => r.tajuk === 'E2E Slot Tahun Baru');
-      assert.ok(row && row.hari === 'Khamis' && row.tarikh === '2026-12-31');
-
-      const card = () => page.locator('li', { hasText: 'E2E Slot' });
-      await card().locator('button[aria-label="Edit"]').click();
-      await page.fill('#f-tajuk', 'E2E Slot Diedit');
-      await page.click('button:has-text("Simpan")');
-      await toast(page, /disimpan/);
-      await synced(page);
-      assert.ok(sheet(rt, 'UPCOMING').find((r) => r.tajuk === 'E2E Slot Diedit'));
-
-      const before = Number(sheet(rt, 'UPCOMING').find((r) => r.tajuk === 'E2E Slot Diedit').order);
-      await card().locator('button[aria-label="Naik"]').click();
-      await synced(page);
-      await page.waitForTimeout(300);
-      const after = Number(sheet(rt, 'UPCOMING').find((r) => r.tajuk === 'E2E Slot Diedit').order);
-      assert.ok(after < before, `order moved up (${before} -> ${after})`);
-
-      await card().locator('button[aria-label="Padam"]').click();
-      await page.click('div[role="dialog"] button:has-text("Padam")');
-      await toast(page, /dipadam/);
-      await synced(page);
-      assert.ok(!sheet(rt, 'UPCOMING').some((r) => r.tajuk.startsWith('E2E Slot')));
-    });
-
-    await step('Admin List Panel: add / edit / delete', async () => {
-      await go(page, 'panel');
-      await page.click('text=Tambah Panel');
-      await page.fill('#f-tajuk', 'Tajuk E2E');
-      await page.fill('#f-nama_panel', 'Ustaz E2E');
-      await page.click('button:has-text("Simpan")');
-      await toast(page, /ditambah/);
-      await synced(page);
-      assert.ok(sheet(rt, 'PANEL').find((r) => r.nama_panel === 'Ustaz E2E'));
-      await page.locator('li', { hasText: 'Ustaz E2E' }).locator('button[aria-label="Padam"]').click();
-      await page.click('div[role="dialog"] button:has-text("Padam")');
-      await synced(page);
-      await page.waitForTimeout(200);
-      assert.ok(!sheet(rt, 'PANEL').find((r) => r.nama_panel === 'Ustaz E2E'));
+    await step('Desktop: LIST PANEL -> UPCOMING + Hero sync (date, Belum Ditentukan, grouping, sort, hero)', async () => {
+      await scheduleSyncFlow(page, 'D', { checkHero: true });
     });
 
     await step('Admin Panduan: add doc -> GDrive download link conversion', async () => {
@@ -462,7 +559,7 @@ async function noHorizontalScroll(page, label) {
         for (const t of tabs) { await go(mp, t); await noHorizontalScroll(mp, `${dev} admin #${t}`); }
         // Every "add" form, opened after scrolling down: overlay must cover the viewport and
         // the Simpan button must be on-screen (regression: sheet trapped inside the section).
-        const forms = [['upcoming', /Tambah Slot/], ['panel', /Tambah Panel/], ['panduan', /Tambah Dokumen/],
+        const forms = [['panel', /Tambah Panel/], ['panduan', /Tambah Dokumen/],
           ['peringatan', /Tambah Peringatan/], ['kitab', /Tambah Kitab/], ['kitab', /\+ Tambah skrip/],
           ['youtube', /Tambah Episod/]];
         for (const [t, name] of forms) {
@@ -516,6 +613,20 @@ async function noHorizontalScroll(page, label) {
       const lock = await mp.locator('button[aria-label="Log masuk Admin"]').boundingBox();
       const barTop = (await bar.boundingBox()).y;
       assert.ok(lock.y + lock.height <= barTop, 'footer content clears the tab bar');
+      await mctx.close();
+    });
+
+    await step('Mobile (iPhone 13): LIST PANEL -> UPCOMING sync (date, Belum Ditentukan, grouping, sort)', async () => {
+      const mctx = await browser.newContext({ ...devices['iPhone 13'] });
+      await stubThumbs(mctx);
+      const mp = await mctx.newPage();
+      watch(mp, 'mobile-sync');
+      await mp.goto(APP + '#upcoming');
+      await synced(mp);
+      await adminLogin(mp);
+      await mp.waitForSelector('button[title="Keluar Mod Admin"]');
+      rt.cache.clear();
+      await scheduleSyncFlow(mp, 'M');
       await mctx.close();
     });
 

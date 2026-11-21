@@ -52,12 +52,14 @@ function doPost(e) {
   try {
     var body = JSON.parse((e && e.postData && e.postData.contents) || '{}');
     lock.waitLock(20000);
+    LOCK_HELD_ = true;
     var data = handle_(body);
     SpreadsheetApp.flush();
     return json_({ ok: true, data: data });
   } catch (err) {
     return json_({ ok: false, error: String(err.message || err) });
   } finally {
+    LOCK_HELD_ = false;
     try { lock.releaseLock(); } catch (x) {}
   }
 }
@@ -116,6 +118,10 @@ function readSheet_(name) {
   var values = sh.getDataRange().getValues();
   if (values.length < 1) return { sh: sh, header: HEADERS[name], rows: [] };
   var header = values[0].map(function (h) { return String(h).trim(); });
+  if (missingHeaders_(name, header).length) {
+    header = ensureHeaders_(sh, name);
+    values = sh.getDataRange().getValues();
+  }
   var tz = Session.getScriptTimeZone();
   var rows = [];
   for (var i = 1; i < values.length; i++) {
@@ -143,6 +149,45 @@ function publicRow_(r) {
     o[k] = r[k];
   });
   return o;
+}
+
+var LOCK_HELD_ = false; // true while doPost holds the script lock
+
+function missingHeaders_(name, header) {
+  return HEADERS[name].filter(function (h) { return header.indexOf(h) < 0; });
+}
+
+/**
+ * Self-healing schema: appends any column from HEADERS that the tab is missing
+ * (e.g. PANEL.tarikh on a tab created by hand). Writes map values by the tab's own
+ * header row, so without this a missing column would silently drop that field.
+ * New columns are formatted as plain text so Sheets doesn't auto-convert dates.
+ * Runs under the script lock so two first requests can't both append the column.
+ */
+function ensureHeaders_(sh, name) {
+  var lock = null;
+  if (!LOCK_HELD_) {
+    lock = LockService.getScriptLock();
+    if (!lock.tryLock(10000)) lock = null;
+  }
+  try {
+    var width = Math.max(sh.getDataRange().getValues()[0].length, 1);
+    var header = sh.getRange(1, 1, 1, width).getValues()[0].map(function (h) { return String(h).trim(); });
+    var last = 0;
+    header.forEach(function (h, i) { if (h) last = i + 1; });
+    header = header.slice(0, last);
+    var missing = missingHeaders_(name, header);
+    if (missing.length && (lock || LOCK_HELD_)) {
+      sh.getRange(1, last + 1, 1, missing.length).setValues([missing]).setFontWeight('bold');
+      missing.forEach(function (col, i) {
+        sh.getRange(2, last + 1 + i, Math.max(sh.getMaxRows() - 1, 1), 1).setNumberFormat(NUMERIC_COLS[col] ? '0' : '@');
+      });
+      header = header.concat(missing);
+    }
+    return header;
+  } finally {
+    if (lock) lock.releaseLock();
+  }
 }
 
 // ---- Writes ----------------------------------------------------------------

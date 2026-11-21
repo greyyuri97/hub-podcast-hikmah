@@ -10,8 +10,8 @@ Progressive Web App yang mobile-first dan berfungsi sebagai pusat maklumat untuk
 | Seksyen | Ringkasan |
 |---|---|
 | **Hero Spotlight** | Podcast terdekat, kiraan hari dan pintasan ke Panduan Panel |
-| **Upcoming Podcast** | Kad jadual (Hari, Tarikh, Masa, Tajuk, Panel) dengan butang **Salin Info WA**. Admin boleh tambah, edit, susun dan padam |
-| **List Panel** | Direktori panel dengan carian dan tapisan Akan datang / Lepas |
+| **Upcoming Podcast** | Dijana automatik daripada List Panel yang bertarikh (tarikh paling dekat dahulu; panel dengan tajuk & tarikh sama digabungkan). Butang **Salin Info WA** untuk Admin sahaja |
+| **List Panel** | **Sumber utama jadual.** Tajuk, Nama Panel dan Tarikh (dengan Hari automatik) atau *Belum Ditentukan*. Carian dan tapisan Akan datang / Lepas |
 | **Panduan Panel** | Kad muat turun PDF dari Google Drive |
 | **Peringatan Syeikhuna** | Kad petikan berbentuk *speech bubble* dengan sokongan teks Arab (Amiri) |
 | **Promosi Kitab** | Penjejak kekerapan promosi dengan butang +/− yang segerak ke Sheets, serta kad skrip promosi |

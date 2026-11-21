@@ -1,17 +1,10 @@
 import { useMemo, useState } from 'react';
-import { CalendarDays, Check, Clock, Copy, Users } from 'lucide-react';
+import { ArrowRight, CalendarDays, Check, Copy, Users } from 'lucide-react';
 import { useData } from '../lib/store.jsx';
-import { BULAN_PENDEK, byOrder, copyText, cx, daysUntil, hariFromISO, hariOf, parseISO, relativeLabel, todayISO } from '../lib/utils.js';
+import { BULAN_PENDEK, copyText, cx, daysUntil, parseISO, relativeLabel } from '../lib/utils.js';
+import { deriveSchedule } from '../lib/schedule.js';
 import { buildWaMessage } from '../lib/wa.js';
-import { AddButton, ConfirmModal, Empty, FormModal, RowActions, SectionHeader, moved, useEditor } from '../components/ui.jsx';
-
-const FIELDS = [
-  { name: 'tarikh', label: 'Tarikh', type: 'date', required: true, help: 'Hari akan diisi secara automatik.' },
-  { name: 'hari', label: 'Hari', required: true, placeholder: 'cth. Khamis' },
-  { name: 'masa', label: 'Masa (pilihan)', placeholder: 'cth. 9:00 malam' },
-  { name: 'tajuk', label: 'Tajuk', required: true, placeholder: 'Tajuk podcast' },
-  { name: 'panel', label: 'Panel', type: 'textarea', rows: 2, required: true, placeholder: 'cth. Ustaz A & Dr. B' },
-];
+import { Empty, SectionHeader } from '../components/ui.jsx';
 
 /** Admin-only: the component itself refuses to render for public users, wherever it is placed. */
 function CopyWa({ item }) {
@@ -33,13 +26,26 @@ function CopyWa({ item }) {
   );
 }
 
-export default function Upcoming() {
-  const { db, isAdmin, create, update, remove, reorder } = useData();
-  const { editing, setEditing, deleting, setDeleting } = useEditor();
-  const rows = useMemo(() => [...db.UPCOMING].sort(byOrder), [db.UPCOMING]);
+/** Jumps to List Panel, where the schedule is managed. */
+function ManageLink({ className = '' }) {
+  return (
+    <a
+      href="#panel"
+      onClick={() => window.scrollTo({ top: 0, behavior: 'instant' })}
+      className={cx('btn-ghost self-start sm:self-auto', className)}
+    >
+      Urus jadual di List Panel <ArrowRight size={16} />
+    </a>
+  );
+}
 
-  const save = (v) => (editing?.id ? update('UPCOMING', editing.id, v) : create('UPCOMING', v));
-  const autoHari = (next, changed) => (changed === 'tarikh' ? { ...next, hari: hariFromISO(next.tarikh) } : next);
+/**
+ * Read-only schedule derived from LIST PANEL (single source of truth):
+ * dated entries from today onward, grouped by tajuk + tarikh, nearest first.
+ */
+export default function Upcoming() {
+  const { db, isAdmin } = useData();
+  const rows = useMemo(() => deriveSchedule(db.PANEL), [db.PANEL]);
 
   return (
     <section aria-labelledby="h-upcoming">
@@ -48,52 +54,49 @@ export default function Upcoming() {
         title={<span id="h-upcoming">Upcoming Podcast</span>}
         desc={
           isAdmin
-            ? 'Jadual rakaman & siaran langsung. Tekan “Salin Info WA” untuk kongsi makluman lengkap ke group.'
+            ? 'Dijana automatik daripada List Panel yang bertarikh. Tekan “Salin Info WA” untuk kongsi makluman lengkap ke group.'
             : 'Jadual rakaman & siaran langsung podcast yang akan datang.'
         }
-        action={isAdmin && <AddButton onClick={() => setEditing({ tarikh: todayISO(), hari: hariFromISO(todayISO()) })}>Tambah Slot</AddButton>}
+        action={isAdmin && <ManageLink />}
       />
 
       {rows.length === 0 ? (
-        <Empty icon={CalendarDays} title="Tiada jadual lagi" hint="Jadual podcast akan datang akan dipaparkan di sini." />
+        <Empty
+          icon={CalendarDays}
+          title="Tiada jadual lagi"
+          hint={isAdmin ? 'Tambah panel dengan tarikh di List Panel untuk memaparkannya di sini.' : 'Jadual akan dipaparkan sebaik sahaja tarikh rakaman ditetapkan.'}
+        />
       ) : (
         <ul className="grid gap-4 md:grid-cols-2">
-          {rows.map((r, i) => {
+          {rows.map((r) => {
             const d = parseISO(r.tarikh);
             const n = daysUntil(r.tarikh);
-            const past = n !== null && n < 0;
             return (
-              <li key={r.id} className={cx('card relative flex flex-col gap-4 p-4 sm:p-5', past && 'opacity-70')}>
+              <li key={r.id} data-slot={r.id} className="card relative flex flex-col gap-4 p-4 sm:p-5">
                 <div className="flex gap-3.5 sm:gap-4">
                   <div className="flex w-[60px] shrink-0 flex-col items-center justify-center self-start rounded-btn border border-accent/40 bg-accent/10 py-2 text-center">
-                    <span className="text-xs font-bold uppercase tracking-wider text-muted">{hariOf(r).slice(0, 3) || '—'}</span>
-                    <span className="text-2xl font-extrabold leading-none text-primary">{d ? d.getDate() : '?'}</span>
-                    <span className="text-xs font-semibold text-muted">{d ? `${BULAN_PENDEK[d.getMonth()]} ${String(d.getFullYear()).slice(2)}` : ''}</span>
+                    <span className="text-xs font-bold uppercase tracking-wider text-muted">{r.hari.slice(0, 3)}</span>
+                    <span className="text-2xl font-extrabold leading-none text-primary">{d.getDate()}</span>
+                    <span className="text-xs font-semibold text-muted">{`${BULAN_PENDEK[d.getMonth()]} ${String(d.getFullYear()).slice(2)}`}</span>
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="mb-1.5 flex flex-wrap items-center gap-2">
-                      {n !== null && (
-                        <span className={cx('chip', past ? 'bg-ink/5 text-muted' : n <= 3 ? 'bg-accent text-on-accent' : 'bg-brand/10 text-primary dark:bg-accent/15')}>
-                          {past ? 'Telah berlalu' : relativeLabel(r.tarikh)}
-                        </span>
-                      )}
-                      {r.masa && <span className="inline-flex items-center gap-1 text-[13px] text-muted"><Clock size={13} />{r.masa}</span>}
+                      <span className={cx('chip', n <= 3 ? 'bg-accent text-on-accent' : 'bg-brand/10 text-primary dark:bg-accent/15')}>
+                        {relativeLabel(r.tarikh)}
+                      </span>
+                      <span className="text-[13px] font-medium text-muted">{r.hari}</span>
                     </div>
                     <h3 className="text-[17px] font-bold leading-snug text-ink wrap-anywhere sm:text-base">{r.tajuk}</h3>
-                    <p className="mt-1.5 flex items-start gap-1.5 text-[15px] leading-snug text-muted wrap-anywhere sm:text-sm"><Users size={15} className="mt-0.5 shrink-0" />{r.panel}</p>
+                    <p className="mt-1.5 flex items-start gap-1.5 text-[15px] leading-snug text-muted wrap-anywhere sm:text-sm">
+                      <Users size={15} className="mt-0.5 shrink-0" />
+                      <span data-testid="slot-panel">{r.panel}</span>
+                    </p>
                   </div>
                 </div>
-                {/* Admin-only footer: Salin Info WA + reorder/edit/delete. Public cards end at the content. */}
+                {/* Admin-only footer: Salin Info WA. Public cards end at the content. */}
                 {isAdmin && (
-                  <div className="mt-auto flex flex-col gap-1 border-t border-line pt-3.5 sm:flex-row sm:items-center sm:justify-between sm:gap-2">
+                  <div className="mt-auto border-t border-line pt-3.5">
                     <CopyWa item={r} />
-                    <RowActions
-                      className="justify-end"
-                      onUp={i > 0 ? () => reorder('UPCOMING', moved(rows, i, -1)) : undefined}
-                      onDown={i < rows.length - 1 ? () => reorder('UPCOMING', moved(rows, i, 1)) : undefined}
-                      onEdit={() => setEditing(r)}
-                      onDelete={() => setDeleting(r)}
-                    />
                   </div>
                 )}
               </li>
@@ -101,17 +104,6 @@ export default function Upcoming() {
           })}
         </ul>
       )}
-
-      <FormModal
-        open={Boolean(editing)}
-        onClose={() => setEditing(null)}
-        title={editing?.id ? 'Edit Slot Podcast' : 'Tambah Slot Podcast'}
-        fields={FIELDS}
-        initial={editing}
-        onChange={autoHari}
-        onSubmit={save}
-      />
-      <ConfirmModal open={Boolean(deleting)} onClose={() => setDeleting(null)} onConfirm={() => remove('UPCOMING', deleting.id)} message={`Padam slot “${deleting?.tajuk}”?`} />
     </section>
   );
 }
