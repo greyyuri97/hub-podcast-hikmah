@@ -3,7 +3,9 @@
  * MUST match HEADERS in google-apps-script/Code.gs.
  */
 export const SHEETS = {
+  // Legacy: kept so existing Sheets keep loading; the UI no longer reads or writes it.
   UPCOMING: ['id', 'order', 'hari', 'tarikh', 'masa', 'tajuk', 'panel'],
+  // Schedule source of truth. tarikh = 'YYYY-MM-DD' | 'Belum Ditentukan'. Hari is derived.
   PANEL: ['id', 'tajuk', 'nama_panel', 'tarikh'],
   PANDUAN: ['id', 'order', 'kategori', 'tajuk', 'keterangan', 'gdrive_url'],
   PERINGATAN: ['id', 'order', 'petikan', 'arab', 'konteks'],

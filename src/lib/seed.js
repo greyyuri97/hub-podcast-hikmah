@@ -1,25 +1,17 @@
-import { addDays, hariFromISO } from './utils.js';
+import { addDays } from './utils.js';
 
 /** Realistic Bahasa Melayu seed data. Dates are relative to today so the demo never looks stale. */
 export function buildSeed() {
-  const up = (n, order, masa, tajuk, panel) => {
-    const tarikh = addDays(n);
-    return { id: `up${order}`, order, hari: hariFromISO(tarikh), tarikh, masa, tajuk, panel };
-  };
-
   return {
-    UPCOMING: [
-      up(3, 1, '9:00 malam', 'Mengurus Hati di Era Media Sosial', 'Ustaz Hafiz Rahman & Dr. Nurul Huda Ismail'),
-      up(10, 2, '9:00 malam', 'Adab Penuntut Ilmu: Belajar dari Kitab Ta\'lim al-Muta\'allim', 'Ustaz Amirul Hakim & Sdr. Faiz Azman'),
-      up(17, 3, '8:30 malam', 'Keluarga Sakinah: Komunikasi Suami Isteri', 'Ustazah Siti Aisyah & Dr. Khairul Anuar'),
-      up(24, 4, '9:00 malam', 'Rezeki & Tawakal: Antara Usaha dan Doa', 'Ustaz Zulkifli Hassan & En. Rizal Othman'),
-    ],
+    // LIST PANEL is the schedule source of truth; UPCOMING is derived from it (see lib/schedule.js).
+    UPCOMING: [],
     PANEL: [
       { id: 'pn1', tajuk: 'Mengurus Hati di Era Media Sosial', nama_panel: 'Ustaz Hafiz Rahman', tarikh: addDays(3) },
       { id: 'pn2', tajuk: 'Mengurus Hati di Era Media Sosial', nama_panel: 'Dr. Nurul Huda Ismail', tarikh: addDays(3) },
-      { id: 'pn3', tajuk: 'Adab Penuntut Ilmu', nama_panel: 'Ustaz Amirul Hakim', tarikh: addDays(10) },
-      { id: 'pn4', tajuk: 'Adab Penuntut Ilmu', nama_panel: 'Sdr. Faiz Azman', tarikh: addDays(10) },
+      { id: 'pn3', tajuk: "Adab Penuntut Ilmu: Belajar dari Kitab Ta'lim al-Muta'allim", nama_panel: 'Ustaz Amirul Hakim', tarikh: addDays(10) },
+      { id: 'pn4', tajuk: "Adab Penuntut Ilmu: Belajar dari Kitab Ta'lim al-Muta'allim", nama_panel: 'Sdr. Faiz Azman', tarikh: addDays(10) },
       { id: 'pn5', tajuk: 'Keluarga Sakinah: Komunikasi Suami Isteri', nama_panel: 'Ustazah Siti Aisyah', tarikh: addDays(17) },
+      { id: 'pn11', tajuk: 'Rezeki & Tawakal: Antara Usaha dan Doa', nama_panel: 'Ustaz Zulkifli Hassan', tarikh: 'Belum Ditentukan' },
       { id: 'pn6', tajuk: 'Hikmah di Sebalik Ujian', nama_panel: 'Ustaz Muhammad Syafiq', tarikh: addDays(-7) },
       { id: 'pn7', tajuk: 'Hikmah di Sebalik Ujian', nama_panel: 'Pn. Rohani Abdullah', tarikh: addDays(-7) },
       { id: 'pn8', tajuk: 'Solat Khusyuk: Dari Teori ke Amalan', nama_panel: 'Ustaz Hafiz Rahman', tarikh: addDays(-14) },

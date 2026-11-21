@@ -35,7 +35,7 @@ const VIEWPORTS = [
 ];
 const TABS = ['upcoming', 'panel', 'panduan', 'peringatan', 'kitab', 'youtube', 'cadangan'];
 const FORMS = [
-  ['upcoming', /Tambah Slot/], ['panel', /Tambah Panel/], ['panduan', /Tambah Dokumen/],
+  ['panel', /Tambah Panel/], ['panduan', /Tambah Dokumen/],
   ['peringatan', /Tambah Peringatan/], ['kitab', /Tambah Kitab/], ['kitab', /Tambah skrip/], ['youtube', /Tambah Episod/],
 ];
 
@@ -62,7 +62,11 @@ async function seedStress() {
     [10, 'Keluarga Sakinah', 'Ustazah Siti Aisyah'],
     [-5, 'Hikmah di Sebalik Ujian', 'Ustaz Muhammad Syafiq & Pn. Rohani Abdullah'],
   ];
-  for (const [n, tajuk, panel] of up) await post({ action: 'create', sheet: 'UPCOMING', item: { tarikh: d(n), hari: hari(n), masa: '9:00 malam', tajuk, panel } });
+  // LIST PANEL drives Upcoming: one row per panelist; same tajuk+date merge into one slot.
+  for (const [n, tajuk, panel] of up) {
+    for (const nama of panel.split(/, | & /)) await post({ action: 'create', sheet: 'PANEL', item: { tarikh: d(n), tajuk, nama_panel: nama } });
+  }
+  await post({ action: 'create', sheet: 'PANEL', item: { tarikh: 'Belum Ditentukan', tajuk: 'Rezeki & Tawakal: Antara Usaha dan Doa', nama_panel: 'Ustaz Zulkifli Hassan' } });
   for (const [t, p] of [['Mengurus Hati di Era Media Sosial: Antara Riya\' dan Ikhlas', 'Dr. Ahmad Fauzi bin Yusof Al-Hafiz'], ['Solat Khusyuk', 'Ustaz Hafiz Rahman']]) await post({ action: 'create', sheet: 'PANEL', item: { tajuk: t, nama_panel: p, tarikh: d(-14) } });
   await post({ action: 'create', sheet: 'PANDUAN', item: { kategori: 'PANEL', tajuk: 'SOP Moderator & Pengurusan Masa Rakaman Langsung', keterangan: 'Skrip pembukaan, penutup dan cara mengendalikan soalan penonton.', gdrive_url: 'https://drive.google.com/file/d/1AbCdEfGhIjKlMnOpQ/view' } });
   await post({ action: 'create', sheet: 'PERINGATAN', item: { petikan: 'Bercakaplah dengan bahasa yang memudahkan, bukan menyukarkan. Sampaikan dengan lembut walaupun tegas pada prinsip, kerana tujuan kita menyampaikan, bukan memenangi hujah.', arab: 'يَسِّرُوا وَلَا تُعَسِّرُوا، وَبَشِّرُوا وَلَا تُنَفِّرُوا، وَتَطَاوَعُوا وَلَا تَخْتَلِفُوا', konteks: 'Usrah Pengurusan Podcast, Rabiulawal 1448H' } });
@@ -103,7 +107,9 @@ function measure({ scope, deviceWidth }) {
   for (const el of inter) {
     if (!visible(el) || el.tabIndex === -1 && el.tagName === 'INPUT') continue;
     if (el.closest('.no-scrollbar') && el.getBoundingClientRect().right > vw) continue; // off-screen in a scroller is fine
-    const r = el.getBoundingClientRect();
+    // A checkbox/radio wrapped in a <label> is tapped via the whole label: measure that.
+    const hit = /^(checkbox|radio)$/.test(el.type) && el.closest('label') ? el.closest('label') : el;
+    const r = hit.getBoundingClientRect();
     if (r.height < 44 - 0.5 || r.width < 44 - 0.5) issues.push({ type: 'tap<44', detail: `${Math.round(r.width)}x${Math.round(r.height)} "${label(el)}"` });
   }
   // Text size + clipped at screen edge

@@ -69,12 +69,16 @@ export function Modal({ open, onClose, title, children, footer, size = 'md' }) {
  * onSubmit(values) -> truthy to close.
  */
 export function FormModal({ open, onClose, title, fields, initial, onSubmit, submitLabel = 'Simpan', onChange }) {
-  const [values, setValues] = useState({});
+  const [values, setValues] = useState(() => ({ ...(initial || {}) }));
   const [busy, setBusy] = useState(false);
-  const initRef = useRef(initial);
-  initRef.current = initial;
-  // Reset only when the modal opens (initial may be a fresh object each render).
-  useEffect(() => { if (open) setValues({ ...(initRef.current || {}) }); }, [open]);
+  // Load `initial` the moment the modal opens, during render (not in an effect), so the
+  // very first frame already shows the right values — an effect would paint stale/empty
+  // values first and could overwrite a change made in that instant.
+  const [wasOpen, setWasOpen] = useState(open);
+  if (open !== wasOpen) {
+    setWasOpen(open);
+    if (open) setValues({ ...(initial || {}) });
+  }
 
   const set = (name, v) =>
     setValues((cur) => {
@@ -104,21 +108,53 @@ export function FormModal({ open, onClose, title, fields, initial, onSubmit, sub
     >
       <form id="form-modal" onSubmit={submit} className="space-y-4">
         {fields.map((f) => {
+          // Optional per-field rules that depend on the other values (e.g. a checkbox that
+          // turns a date field off): disabledWhen(values) / requiredWhen(values).
+          const disabled = f.disabledWhen ? f.disabledWhen(values) : false;
+          const required = disabled ? false : f.requiredWhen ? f.requiredWhen(values) : f.required;
+          if (f.type === 'checkbox') {
+            return (
+              <div key={f.name} className="-mt-1">
+                <label
+                  htmlFor={`f-${f.name}`}
+                  className={cx(
+                    'flex min-h-12 cursor-pointer items-center gap-3 rounded-btn border px-3.5 py-2.5 transition',
+                    values[f.name] ? 'border-accent bg-accent/10' : 'border-line bg-bg hover:border-accent/60',
+                  )}
+                >
+                  <input
+                    id={`f-${f.name}`}
+                    name={f.name}
+                    type="checkbox"
+                    className="h-5 w-5 shrink-0 cursor-pointer rounded accent-brand dark:accent-accent"
+                    checked={Boolean(values[f.name])}
+                    onChange={(e) => set(f.name, e.target.checked)}
+                  />
+                  <span className="min-w-0">
+                    <span className="block text-[15px] font-semibold text-ink sm:text-sm">{f.label}</span>
+                    {f.help && <span className="block text-[13px] text-muted sm:text-xs">{f.help}</span>}
+                  </span>
+                </label>
+              </div>
+            );
+          }
           const common = {
             id: `f-${f.name}`,
             name: f.name,
-            required: f.required,
+            required,
+            disabled,
+            'aria-disabled': disabled || undefined,
             placeholder: f.placeholder,
             value: values[f.name] ?? '',
             onChange: (e) => set(f.name, e.target.value),
-            className: cx('input', f.dir === 'rtl' && 'arabic text-right text-lg'),
+            className: cx('input', f.dir === 'rtl' && 'arabic text-right text-lg', disabled && 'cursor-not-allowed opacity-50'),
             dir: f.dir,
             maxLength: f.maxLength,
           };
           return (
             <div key={f.name}>
-              <label className="label" htmlFor={common.id}>
-                {f.label} {f.required && <span className="text-accent">*</span>}
+              <label className={cx('label', disabled && 'opacity-50')} htmlFor={common.id}>
+                {f.label} {required && <span className="text-accent">*</span>}
               </label>
               {f.type === 'textarea' ? (
                 <textarea rows={f.rows || 4} {...common} />

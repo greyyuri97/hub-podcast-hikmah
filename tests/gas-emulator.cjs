@@ -94,7 +94,7 @@ function createRuntime() {
       MimeType: { JSON: 'application/json' },
       createTextOutput: (content) => ({ content, setMimeType() { return this; } }),
     },
-    LockService: { getScriptLock: () => ({ waitLock() {}, releaseLock() {} }) },
+    LockService: { getScriptLock: () => ({ waitLock() {}, tryLock() { return true; }, releaseLock() {} }) },
     CacheService: {
       getScriptCache: () => ({ get: (k) => (cache.has(k) ? cache.get(k) : null), put: (k, v) => cache.set(k, String(v)) }),
     },
